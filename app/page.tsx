@@ -1,8 +1,9 @@
 import { HomePageClient } from "@/components/home-page-client";
 
 export const metadata = {
-  title: "Maps assistant · google-map-test",
-  description: "Chat with a Google Maps–focused assistant for directions, places, and nearby search",
+  title: "SoSoValue assistant · sosodex-mcp",
+  description:
+    "Chat with SoSoValue MCP tools for crypto search, charts, ETF inflows, and index data",
 };
 
 export default function HomePage() {

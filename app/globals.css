@@ -1,7 +1,6 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@source "../node_modules/streamdown/dist/*.js";
+@import "../node_modules/tailwindcss/index.css";
+@import "../node_modules/tw-animate-css/dist/tw-animate.css";
+@import "../node_modules/shadcn/dist/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -183,5 +182,39 @@ body {
   .maps-model-selector-popover [data-slot="command-item"][aria-selected="true"] {
     background-color: #e8f0fe;
     color: #0f172a;
+  }
+
+  /* Chat uses a light page; streamdown inline code inherits list text color on dark chip bg. */
+  .maps-quota-light [data-streamdown="code-block-body"] {
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: none;
+  }
+
+  .maps-quota-light [data-streamdown="code-block-body"] pre,
+  .maps-quota-light [data-streamdown="code-block-body"] code,
+  .maps-quota-light [data-streamdown="code-block-body"] pre code,
+  .maps-quota-light [data-streamdown="code-block-body"] code span,
+  .maps-quota-light [data-streamdown="code-block-body"] pre span,
+  .maps-quota-light [data-streamdown="code-block-body"] [style],
+  .maps-quota-light [data-streamdown="code-block-body"] .block {
+    color: #0f172a !important;
+  }
+
+  .maps-quota-light .group.is-assistant [data-streamdown="code-block-body"] {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  .maps-quota-light .group.is-assistant [data-streamdown="code-block-body"] .block::before {
+    color: #64748b !important;
+  }
+
+  /* Inline tool names (e.g. show-crypto-chart) use data-streamdown="inline-code". */
+  .maps-quota-light [data-streamdown="inline-code"] {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    border: 1px solid #334155;
   }
 }

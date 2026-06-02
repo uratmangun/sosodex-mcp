@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { metadata as showDirectionsMetadata } from "@/lib/mcp/show-directions-tool";
-import { metadata as showMapMetadata } from "@/lib/mcp/show-map-tool";
-import { metadata as showStreetViewMetadata } from "@/lib/mcp/show-street-view-tool";
+import { metadata as showCryptoChartMetadata } from "@/lib/mcp/show-crypto-chart-tool";
+import { metadata as showEtfInflowsMetadata } from "@/lib/mcp/show-etf-inflows-tool";
+import { metadata as showIndexSnapshotMetadata } from "@/lib/mcp/show-index-snapshot-tool";
 
 import { buildMcpAppWidgetHtml } from "./ui-widget-html";
 import {
@@ -16,35 +16,35 @@ export type UiWidgetRegistration = {
   toolName: string;
   bundleFile: string;
   description: string;
-  toolMetaSource?: typeof showMapMetadata._meta;
+  toolMetaSource?: typeof showCryptoChartMetadata._meta;
 };
 
-const SHOW_MAP_BUNDLE = "src_tools_show-map-at-coordinates_3c4ef7.bundle.js";
-/** Set after `xmcp build`; hash suffix matches dist/client output. */
-const SHOW_DIRECTIONS_BUNDLE =
-  "src_tools_show-directions_bdc805.bundle.js";
-/** Set after `xmcp build`; hash suffix matches dist/client output. */
-const SHOW_STREET_VIEW_BUNDLE =
-  "src_tools_show-street-view_50028c.bundle.js";
+/** Placeholder hashes — updated after `pnpm build` (xmcp). */
+const SHOW_CRYPTO_CHART_BUNDLE =
+  "src_tools_show-crypto-chart_9c3af3.bundle.js";
+const SHOW_ETF_INFLOWS_BUNDLE =
+  "src_tools_show-etf-inflows_002e62.bundle.js";
+const SHOW_INDEX_SNAPSHOT_BUNDLE =
+  "src_tools_show-index-snapshot_f1113f.bundle.js";
 
 export const UI_WIDGETS: UiWidgetRegistration[] = [
   {
-    toolName: "show-map-at-coordinates",
-    bundleFile: SHOW_MAP_BUNDLE,
-    description: "Embedded map widget for show-map-at-coordinates",
-    toolMetaSource: showMapMetadata._meta,
+    toolName: "show-crypto-chart",
+    bundleFile: SHOW_CRYPTO_CHART_BUNDLE,
+    description: "Daily price chart widget for show-crypto-chart",
+    toolMetaSource: showCryptoChartMetadata._meta,
   },
   {
-    toolName: "show-directions",
-    bundleFile: SHOW_DIRECTIONS_BUNDLE,
-    description: "Embedded directions widget for show-directions",
-    toolMetaSource: showDirectionsMetadata._meta,
+    toolName: "show-etf-inflows",
+    bundleFile: SHOW_ETF_INFLOWS_BUNDLE,
+    description: "ETF net inflow chart widget for show-etf-inflows",
+    toolMetaSource: showEtfInflowsMetadata._meta,
   },
   {
-    toolName: "show-street-view",
-    bundleFile: SHOW_STREET_VIEW_BUNDLE,
-    description: "Embedded Street View widget for show-street-view",
-    toolMetaSource: showStreetViewMetadata._meta,
+    toolName: "show-index-snapshot",
+    bundleFile: SHOW_INDEX_SNAPSHOT_BUNDLE,
+    description: "SoSoValue Index snapshot widget for show-index-snapshot",
+    toolMetaSource: showIndexSnapshotMetadata._meta,
   },
 ];
 
@@ -77,7 +77,9 @@ export function registerUiResources(server: McpServer): void {
   }
 }
 
-export function toolUiMetaFor(name: string): Record<string, unknown> | undefined {
+export function toolUiMetaFor(
+  name: string,
+): Record<string, unknown> | undefined {
   const widget = UI_WIDGETS.find((w) => w.toolName === name);
   if (!widget) return undefined;
   return buildToolUiMeta(widget.toolName, widget.toolMetaSource);

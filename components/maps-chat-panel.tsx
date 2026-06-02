@@ -9,7 +9,7 @@ import {
 import {
   AlertCircleIcon,
   CopyIcon,
-  MapPinIcon,
+  LineChartIcon,
   Settings2Icon,
   Trash2Icon,
 } from "lucide-react";
@@ -66,13 +66,13 @@ import { buildChatRequestBody } from "@/lib/maps-chat-request";
 import { DEFAULT_MODEL } from "@/lib/maps-system-prompt";
 
 const MESSAGE_ACTION_CLASS =
-  "size-7 rounded-lg text-[#64748b] hover:bg-[#1a73e8] hover:text-white [&_svg]:text-current hover:[&_svg]:text-white";
+  "size-7 rounded-lg text-[#64748b] hover:bg-[#dc2626] hover:text-white [&_svg]:text-current hover:[&_svg]:text-white";
 
 const SUGGESTED_PROMPTS = [
-  "give me one 5 star rated gym in lisbon",
-  "Where to eat 5 star seafood restaurant in singapore",
-  "show me the location of 1 kfc spot in jakarta",
-  "give me 3 coffee shops location in melbourne",
+  "Search Bitcoin and Ethereum on SoSoValue",
+  "Show the daily price chart for ETH using show-crypto-chart",
+  "What are the latest BTC ETF daily net inflows?",
+  "Show a MAG7 index snapshot on SoSoValue",
 ];
 
 type ProviderSettings = {
@@ -177,7 +177,7 @@ function MapsChatPrompt({
         <PromptInputBody>
           <PromptInputTextarea
             disabled={isSending}
-            placeholder="Ask for a place, directions, or what's nearby…"
+            placeholder="Ask about crypto, ETF inflows, or SoSoValue indices…"
             className="text-[#0f172a] placeholder:text-[#94a3b8]"
           />
         </PromptInputBody>
@@ -196,7 +196,7 @@ function MapsChatPrompt({
             onErrorDismiss={handleDismissError}
             status={chat.status}
             className={cn(
-              "rounded-lg bg-[#1a73e8] text-white hover:bg-[#1557b0] hover:text-white [&_svg]:text-white",
+              "rounded-lg bg-[#dc2626] text-white hover:bg-[#b91c1c] hover:text-white [&_svg]:text-white",
               chat.status === "error" &&
                 "bg-red-600 hover:bg-red-700 hover:text-white",
             )}
@@ -359,14 +359,14 @@ export function MapsChatPanel({
     <div className="flex min-h-[68vh] flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.03)]">
       <div className="flex items-center justify-between gap-3 border-b border-[#f1f5f9] px-5 py-4">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-[#e8f0fe] text-[#1a73e8]">
-            <MapPinIcon className="size-3.5" />
+          <span className="flex size-7 items-center justify-center rounded-lg bg-[#fef2f2] text-[#dc2626]">
+            <LineChartIcon className="size-3.5" />
           </span>
           <span className="text-[15px] font-semibold text-[#0f172a]">
-            Maps assistant
+            SoSoValue assistant
           </span>
-          <span className="rounded-full bg-[#ecfdf5] px-2.5 py-0.5 text-[11px] font-medium text-[#15803d]">
-            Maps tools
+          <span className="rounded-full bg-[#fef2f2] px-2.5 py-0.5 text-[11px] font-medium text-[#b91c1c]">
+            SoSoValue tools
           </span>
         </div>
         <Button
@@ -398,9 +398,9 @@ export function MapsChatPanel({
           <ConversationContent className="gap-6 px-4 py-6">
             {chat.messages.length === 0 ? (
               <ConversationEmptyState
-                title="What can I help you find on the map?"
-                description="Ask for directions, restaurants, parks, and more. The assistant calls Google Maps APIs for you."
-                icon={<MapPinIcon className="size-5 text-[#1a73e8]" />}
+                title="What can SoSoValue help you explore?"
+                description="Search tokens, open price charts, ETF inflows, and index snapshots via the SoSoValue MCP tools."
+                icon={<LineChartIcon className="size-5 text-[#dc2626]" />}
               >
                 <div className="flex w-full max-w-lg flex-col gap-2">
                   {SUGGESTED_PROMPTS.map((prompt) => (
@@ -472,7 +472,7 @@ export function MapsChatPanel({
                     <MessageContent
                       className={cn(
                         message.role === "assistant" &&
-                          "w-full text-[#0f172a] [&_p]:text-[#0f172a] [&_li]:text-[#0f172a] [&_ol]:text-[#0f172a] [&_ul]:text-[#0f172a] [&_strong]:text-[#0f172a] [&_em]:text-[#0f172a] [&_h1]:text-[#0f172a] [&_h2]:text-[#0f172a] [&_h3]:text-[#0f172a] [&_a]:text-[#1a73e8]",
+                          "w-full text-[#0f172a] [&_p]:text-[#0f172a] [&_li]:text-[#0f172a] [&_ol]:text-[#0f172a] [&_ul]:text-[#0f172a] [&_strong]:text-[#0f172a] [&_em]:text-[#0f172a] [&_h1]:text-[#0f172a] [&_h2]:text-[#0f172a] [&_h3]:text-[#0f172a] [&_a]:text-[#dc2626] [&_[data-streamdown=code-block-body]]:bg-[#f1f5f9] [&_[data-streamdown=code-block-body]]:text-[#0f172a] [&_[data-streamdown=code-block-body]]:border [&_[data-streamdown=code-block-body]]:border-[#e2e8f0] [&_[data-streamdown=inline-code]]:border [&_[data-streamdown=inline-code]]:border-[#334155] [&_[data-streamdown=inline-code]]:bg-[#0f172a] [&_[data-streamdown=inline-code]]:text-white",
                       )}
                     >
                       {textParts.map((part, index) => (

@@ -19,11 +19,11 @@ export function getToolName(part: MapsToolPart): string {
 }
 
 const TOOL_TITLES: Record<string, string> = {
-  "search-place": "Search place",
-  "get-place-detail": "Place details",
-  "show-map-at-coordinates": "Show map at coordinates",
-  "show-directions": "Show directions",
-  "show-street-view": "Show Street View",
+  "search-crypto": "Search crypto",
+  "get-crypto-detail": "Crypto details",
+  "show-crypto-chart": "Crypto price chart",
+  "show-etf-inflows": "ETF net inflows",
+  "show-index-snapshot": "Index snapshot",
 };
 
 export function formatToolTitle(part: MapsToolPart): string {

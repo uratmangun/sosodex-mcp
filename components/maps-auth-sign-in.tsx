@@ -29,8 +29,9 @@ function GoogleIcon({ className }: { className?: string }) {
 }
 
 export function MapsAuthSignIn({
-  title = "Sign in to use Maps assistant",
-  description = "Sign in with your Google account to chat, load models, and use Maps tools.",
+  title = "Sign in to use SoSoValue assistant",
+  description =
+    "Sign in with your Google account to chat, load models, and use SoSoValue MCP tools.",
   callbackURL = "/",
   className,
 }: {
@@ -62,7 +63,7 @@ export function MapsAuthSignIn({
       <Button
         type="button"
         onClick={() => void signInWithGoogle()}
-        className="rounded-lg bg-[#1a73e8] px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1557b0] hover:text-white [&_svg]:text-white"
+        className="rounded-lg bg-[#dc2626] px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-[#b91c1c] hover:text-white [&_svg]:text-white"
       >
         <GoogleIcon className="mr-2" />
         Sign in with Google

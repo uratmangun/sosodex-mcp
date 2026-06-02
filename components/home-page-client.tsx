@@ -512,28 +512,22 @@ export function HomePageClient() {
                 <MenuIcon className="size-4" />
               </Button>
             ) : null}
-            <span className="flex size-9 items-center justify-center rounded-xl bg-[#1a73e8] text-sm font-bold text-white">
-              M
+            <span className="flex size-9 items-center justify-center rounded-xl bg-[#dc2626] text-sm font-bold text-white">
+              S
             </span>
             <div>
-              <h1 className="text-[17px] font-semibold tracking-tight text-[#0f172a]">Maps assistant</h1>
+              <h1 className="text-[17px] font-semibold tracking-tight text-[#0f172a]">
+                SoSoValue assistant
+              </h1>
               <p className="text-[12px] text-[#64748b]">
                 {signedIn && session?.user.email
                   ? session.user.email
-                  : "Directions, places, and nearby search"}
+                  : "Crypto, ETFs, and index data from SoSoValue"}
               </p>
             </div>
           </div>
           <nav className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/maps-usage"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "h-8 rounded-lg border-[#e2e8f0] bg-white text-[12px] text-[#334155]",
-              )}
-            >
-              Usage dashboard
-            </Link>
+          
             {signedIn ? (
               <Button
                 type="button"
@@ -610,8 +604,9 @@ export function HomePageClient() {
             <DialogHeader>
               <DialogTitle>API settings</DialogTitle>
               <DialogDescription>
-                The Maps assistant uses the app&apos;s built-in provider by default. Optionally
-                connect your own OpenAI-compatible endpoint — stored locally in your browser.
+                The SoSoValue assistant uses the app&apos;s built-in provider by default.
+                Optionally connect your own OpenAI-compatible endpoint — stored locally in your
+                browser.
               </DialogDescription>
             </DialogHeader>
 
@@ -692,7 +687,7 @@ export function HomePageClient() {
                       systemPrompt: event.target.value,
                     }));
                   }}
-                  placeholder="Leave blank to use the Maps assistant default system prompt."
+                  placeholder="Leave blank to use the SoSoValue assistant default system prompt."
                   value={draftSettings.systemPrompt}
                 />
               </FieldContent>
@@ -712,7 +707,7 @@ export function HomePageClient() {
             </Button>
             <Button
               onClick={handleSaveSettings}
-              className="my-3 mr-4 mb-3 bg-[#1a73e8] text-white hover:bg-[#1557b0] hover:text-white"
+              className="my-3 mr-4 mb-3 bg-[#dc2626] text-white hover:bg-[#b91c1c] hover:text-white"
             >
               Save settings
             </Button>

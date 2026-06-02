@@ -15,7 +15,6 @@ import {
   ModelSelectorName,
   ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector";
-import { PromptInputButton } from "@/components/ai-elements/prompt-input";
 import type { UiModel } from "@/lib/models";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +67,7 @@ const ModelRow = memo(({ model, selectedModelId, onSelect }: ModelRowProps) => {
         {model.id}
       </ModelSelectorName>
       {selectedModelId === model.id ? (
-        <CheckIcon className="ml-auto size-4 shrink-0 text-[#1a73e8]" />
+        <CheckIcon className="ml-auto size-4 shrink-0 text-[#dc2626]" />
       ) : (
         <span className="ml-auto size-4 shrink-0" />
       )}
@@ -122,14 +121,8 @@ export function MapsModelSelector({
   return (
     <ModelSelector onOpenChange={setOpen} open={open}>
       <ModelSelectorTrigger
-        render={
-          <PromptInputButton
-            className="h-8 max-w-[min(100%,20rem)] gap-1.5 px-2 font-normal text-[#0f172a] hover:bg-[#f8fafc] hover:text-[#0f172a]"
-            disabled={disabled || modelsLoading || models.length === 0}
-            type="button"
-            variant="ghost"
-          />
-        }
+        className="inline-flex h-8 max-w-[min(100%,20rem)] cursor-pointer items-center gap-1.5 rounded-md px-2 font-normal text-[#0f172a] hover:bg-[#f8fafc] hover:text-[#0f172a] disabled:pointer-events-none disabled:opacity-50"
+        disabled={disabled || modelsLoading || models.length === 0}
       >
         {modelsLoading ? (
           <Loader2Icon className="size-3.5 shrink-0 animate-spin" />

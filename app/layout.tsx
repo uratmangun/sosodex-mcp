@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, IBM_Plex_Mono } from "next/font/google";
 
-import { PostHogProvider } from "@/components/posthog-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +18,9 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Maps Assistant",
+  title: "SoSoValue Assistant",
   description:
-    "A Maps Assistant that uses Google Maps APIs to help you find places and directions.",
+    "Chat with SoSoValue MCP tools for crypto search, price charts, ETF inflows, and index snapshots.",
 };
 
 export default function RootLayout({
@@ -32,9 +31,7 @@ export default function RootLayout({
   return (
     <html className={cn("h-full antialiased", sans.variable, mono.variable)} lang="en">
       <body className="min-h-full bg-background text-foreground">
-        <PostHogProvider>
-          <TooltipProvider>{children}</TooltipProvider>
-        </PostHogProvider>
+        <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>
   );

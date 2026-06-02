@@ -3,21 +3,27 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-import { buildShowDirectionsToolResult } from "@/lib/google-maps/show-directions-payload";
-import { buildShowMapToolResult } from "@/lib/google-maps/show-map-payload";
-import { buildShowStreetViewToolResult } from "@/lib/google-maps/show-street-view-payload";
+import { buildCryptoChartPayload, toCryptoChartToolResult } from "@/lib/sosovalue/chart-payload";
 import {
-  metadata as showDirectionsMetadata,
-  schema as showDirectionsSchema,
-} from "@/lib/mcp/show-directions-tool";
+  buildEtfInflowsPayload,
+  toEtfInflowsToolResult,
+} from "@/lib/sosovalue/etf-inflows-payload";
 import {
-  metadata as showStreetViewMetadata,
-  schema as showStreetViewSchema,
-} from "@/lib/mcp/show-street-view-tool";
+  buildIndexSnapshotPayload,
+  toIndexSnapshotToolResult,
+} from "@/lib/sosovalue/index-snapshot-payload";
 import {
-  metadata as showMapMetadata,
-  schema as showMapSchema,
-} from "@/lib/mcp/show-map-tool";
+  metadata as showCryptoChartMetadata,
+  schema as showCryptoChartSchema,
+} from "@/lib/mcp/show-crypto-chart-tool";
+import {
+  metadata as showEtfInflowsMetadata,
+  schema as showEtfInflowsSchema,
+} from "@/lib/mcp/show-etf-inflows-tool";
+import {
+  metadata as showIndexSnapshotMetadata,
+  schema as showIndexSnapshotSchema,
+} from "@/lib/mcp/show-index-snapshot-tool";
 import { registerUiResources, toolUiMetaFor } from "@/lib/mcp/ui-resources";
 
 type XmcpToolEntry = {
@@ -38,44 +44,44 @@ let toolsPromise: Promise<Record<string, XmcpToolEntry>> | null = null;
 async function loadXmcpTools(): Promise<Record<string, XmcpToolEntry>> {
   if (!toolsPromise) {
     toolsPromise = (async () => {
-      const searchPlace = await import("@/src/tools/search-place");
-      const getPlaceDetail = await import("@/src/tools/get-place-detail");
+      const searchCrypto = await import("@/src/tools/search-crypto");
+      const getCryptoDetail = await import("@/src/tools/get-crypto-detail");
 
       return {
-        "search-place": {
-          description: searchPlace.metadata.description,
-          inputSchema: z.object(searchPlace.schema),
+        "search-crypto": {
+          description: searchCrypto.metadata.description,
+          inputSchema: z.object(searchCrypto.schema),
           execute: asExecute(
-            searchPlace.default as (
+            searchCrypto.default as (
               args: Record<string, unknown>,
             ) => Promise<unknown>,
           ),
         },
-        "get-place-detail": {
-          description: getPlaceDetail.metadata.description,
-          inputSchema: z.object(getPlaceDetail.schema),
+        "get-crypto-detail": {
+          description: getCryptoDetail.metadata.description,
+          inputSchema: z.object(getCryptoDetail.schema),
           execute: asExecute(
-            getPlaceDetail.default as (
+            getCryptoDetail.default as (
               args: Record<string, unknown>,
             ) => Promise<unknown>,
           ),
         },
-        "show-map-at-coordinates": {
-          description: showMapMetadata.description,
-          inputSchema: z.object(showMapSchema),
-          _meta: toolUiMetaFor("show-map-at-coordinates"),
+        "show-crypto-chart": {
+          description: showCryptoChartMetadata.description,
+          inputSchema: z.object(showCryptoChartSchema),
+          _meta: toolUiMetaFor("show-crypto-chart"),
           execute: async () => ({}),
         },
-        "show-directions": {
-          description: showDirectionsMetadata.description,
-          inputSchema: z.object(showDirectionsSchema),
-          _meta: toolUiMetaFor("show-directions"),
+        "show-etf-inflows": {
+          description: showEtfInflowsMetadata.description,
+          inputSchema: z.object(showEtfInflowsSchema),
+          _meta: toolUiMetaFor("show-etf-inflows"),
           execute: async () => ({}),
         },
-        "show-street-view": {
-          description: showStreetViewMetadata.description,
-          inputSchema: z.object(showStreetViewSchema),
-          _meta: toolUiMetaFor("show-street-view"),
+        "show-index-snapshot": {
+          description: showIndexSnapshotMetadata.description,
+          inputSchema: z.object(showIndexSnapshotSchema),
+          _meta: toolUiMetaFor("show-index-snapshot"),
           execute: async () => ({}),
         },
       };
@@ -107,16 +113,16 @@ function normalizeToolResult(result: unknown): CallToolResult {
 async function createMcpServer(): Promise<McpServer> {
   const server = new McpServer(
     {
-      name: "google-maps-mcp",
+      name: "sosodex-mcp",
       version: "0.1.0",
     },
     {
       instructions: [
-        "Use search-place to find one place per page (TOON: id, name, lat, lng, pagination).",
-        "Use get-place-detail with place.id for address, rating, phone, and website.",
-        "Use show-map-at-coordinates with place.lat and place.lng to get mapUrl and the map widget.",
-        "Use show-directions with origin and destination lat/lng for an embedded route preview (mapUrl in TOON).",
-        "Use show-street-view with place.lat and place.lng for an embedded Street View panorama (mapUrl in TOON).",
+        "Use search-crypto to find one currency per page (TOON: id, symbol, name, pagination).",
+        "Use get-crypto-detail with currency.id for price, market cap, and 24h change.",
+        "Use show-crypto-chart with currencyId and symbol for a daily price chart widget.",
+        "Use show-etf-inflows with an ETF ticker (e.g. IBIT) for net inflow history widget.",
+        "Use show-index-snapshot with an index ticker (e.g. ssimag7) for index ROI widget.",
       ].join(" "),
       capabilities: {
         tools: { listChanged: true },
@@ -137,16 +143,18 @@ async function createMcpServer(): Promise<McpServer> {
         _meta: tool._meta,
       },
       async (args) => {
-        if (name === "show-map-at-coordinates") {
-          const latitude = Number(args.latitude);
-          const longitude = Number(args.longitude);
-          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        if (name === "show-crypto-chart") {
+          const currencyId =
+            typeof args.currencyId === "string" ? args.currencyId.trim() : "";
+          const symbol =
+            typeof args.symbol === "string" ? args.symbol.trim() : "";
+          if (!currencyId || !symbol) {
             return normalizeToolResult({
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    { error: "latitude and longitude are required." },
+                    { error: "currencyId and symbol are required." },
                     null,
                     2,
                   ),
@@ -156,170 +164,97 @@ async function createMcpServer(): Promise<McpServer> {
             });
           }
           try {
-            const result = await buildShowMapToolResult({
-              latitude,
-              longitude,
-              zoom:
-                args.zoom !== undefined ? Number(args.zoom) : undefined,
-              maptype:
-                typeof args.maptype === "string"
-                  ? (args.maptype as
-                      | "roadmap"
-                      | "satellite"
-                      | "terrain"
-                      | "hybrid")
-                  : undefined,
+            const payload = await buildCryptoChartPayload({
+              currencyId,
+              symbol,
+              limit:
+                args.limit !== undefined ? Number(args.limit) : undefined,
             });
-            const uiMeta = toolUiMetaFor("show-map-at-coordinates");
+            const result = toCryptoChartToolResult(payload);
             return normalizeToolResult({
               ...result,
-              _meta: uiMeta,
+              _meta: toolUiMetaFor("show-crypto-chart"),
             });
           } catch (err) {
             const message =
-              err instanceof Error
-                ? err.message
-                : "Map request failed.";
+              err instanceof Error ? err.message : "Chart request failed.";
             return normalizeToolResult({
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    { error: message, latitude, longitude },
-                    null,
-                    2,
-                  ),
-                },
-              ],
+              content: [{ type: "text", text: JSON.stringify({ error: message }) }],
               isError: true,
             });
           }
         }
-        if (name === "show-directions") {
-          const originLatitude = Number(args.originLatitude);
-          const originLongitude = Number(args.originLongitude);
-          const destinationLatitude = Number(args.destinationLatitude);
-          const destinationLongitude = Number(args.destinationLongitude);
-          const coords = [
-            originLatitude,
-            originLongitude,
-            destinationLatitude,
-            destinationLongitude,
-          ];
-          if (!coords.every(Number.isFinite)) {
+
+        if (name === "show-etf-inflows") {
+          const ticker =
+            typeof args.ticker === "string" ? args.ticker.trim() : "";
+          if (!ticker) {
             return normalizeToolResult({
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(
-                    {
-                      error:
-                        "originLatitude, originLongitude, destinationLatitude, and destinationLongitude are required.",
-                    },
-                    null,
-                    2,
-                  ),
+                  text: JSON.stringify({ error: "ticker is required." }),
                 },
               ],
               isError: true,
             });
           }
           try {
-            const result = await buildShowDirectionsToolResult({
-              originLatitude,
-              originLongitude,
-              destinationLatitude,
-              destinationLongitude,
-              mode:
-                typeof args.mode === "string"
-                  ? (args.mode as
-                      | "driving"
-                      | "walking"
-                      | "bicycling"
-                      | "transit")
-                  : undefined,
+            const payload = await buildEtfInflowsPayload({
+              ticker,
+              symbol:
+                typeof args.symbol === "string" ? args.symbol : undefined,
+              limit:
+                args.limit !== undefined ? Number(args.limit) : undefined,
             });
-            const uiMeta = toolUiMetaFor("show-directions");
+            const result = toEtfInflowsToolResult(payload);
             return normalizeToolResult({
               ...result,
-              _meta: uiMeta,
+              _meta: toolUiMetaFor("show-etf-inflows"),
             });
           } catch (err) {
             const message =
-              err instanceof Error ? err.message : "Directions request failed.";
+              err instanceof Error ? err.message : "ETF inflow request failed.";
             return normalizeToolResult({
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    {
-                      error: message,
-                      originLatitude,
-                      originLongitude,
-                      destinationLatitude,
-                      destinationLongitude,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
+              content: [{ type: "text", text: JSON.stringify({ error: message }) }],
               isError: true,
             });
           }
         }
-        if (name === "show-street-view") {
-          const latitude = Number(args.latitude);
-          const longitude = Number(args.longitude);
-          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+
+        if (name === "show-index-snapshot") {
+          const indexTicker =
+            typeof args.indexTicker === "string"
+              ? args.indexTicker.trim()
+              : "";
+          if (!indexTicker) {
             return normalizeToolResult({
               content: [
                 {
                   type: "text",
-                  text: JSON.stringify(
-                    { error: "latitude and longitude are required." },
-                    null,
-                    2,
-                  ),
+                  text: JSON.stringify({ error: "indexTicker is required." }),
                 },
               ],
               isError: true,
             });
           }
           try {
-            const result = await buildShowStreetViewToolResult({
-              latitude,
-              longitude,
-              heading:
-                args.heading !== undefined ? Number(args.heading) : undefined,
-              pitch: args.pitch !== undefined ? Number(args.pitch) : undefined,
-              fov: args.fov !== undefined ? Number(args.fov) : undefined,
-            });
-            const uiMeta = toolUiMetaFor("show-street-view");
+            const payload = await buildIndexSnapshotPayload({ indexTicker });
+            const result = toIndexSnapshotToolResult(payload);
             return normalizeToolResult({
               ...result,
-              _meta: uiMeta,
+              _meta: toolUiMetaFor("show-index-snapshot"),
             });
           } catch (err) {
             const message =
-              err instanceof Error
-                ? err.message
-                : "Street View request failed.";
+              err instanceof Error ? err.message : "Index request failed.";
             return normalizeToolResult({
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify(
-                    { error: message, latitude, longitude },
-                    null,
-                    2,
-                  ),
-                },
-              ],
+              content: [{ type: "text", text: JSON.stringify({ error: message }) }],
               isError: true,
             });
           }
         }
+
         return normalizeToolResult(await tool.execute(args));
       },
     );

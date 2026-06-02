@@ -106,9 +106,22 @@ export type ToolInputProps = ComponentProps<"div"> & {
   input: ToolPart["input"];
 };
 
-function JsonPre({ value }: { value: string }) {
+function JsonPre({
+  value,
+  variant = "default",
+}: {
+  value: string;
+  variant?: "default" | "dark";
+}) {
   return (
-    <pre className="max-h-64 overflow-auto rounded-md bg-[#f8fafc] p-3 text-xs text-[#334155]">
+    <pre
+      className={cn(
+        "max-h-64 overflow-auto rounded-md p-3 text-xs",
+        variant === "dark"
+          ? "bg-[#1e293b] text-[#e2e8f0]"
+          : "bg-[#f8fafc] text-[#334155]",
+      )}
+    >
       {value}
     </pre>
   );
@@ -125,7 +138,7 @@ export const ToolInput = ({ className, input, ...props }: ToolInputProps) => {
       <h4 className="text-xs font-medium uppercase tracking-wide text-[#64748b]">
         Parameters
       </h4>
-      <JsonPre value={serializedInput} />
+      <JsonPre value={serializedInput} variant="default" />
     </div>
   );
 };
@@ -133,12 +146,14 @@ export const ToolInput = ({ className, input, ...props }: ToolInputProps) => {
 export type ToolOutputProps = ComponentProps<"div"> & {
   output?: ToolPart["output"];
   errorText?: ToolPart["errorText"];
+  variant?: "default" | "dark";
 };
 
 export const ToolOutput = ({
   className,
   output,
   errorText,
+  variant = "default",
   ...props
 }: ToolOutputProps) => {
   if (!(output || errorText)) {
@@ -152,20 +167,33 @@ export const ToolOutput = ({
   } else if (isValidElement(output)) {
     body = output;
   } else if (typeof output === "string") {
-    body = <JsonPre value={output} />;
+    body = <JsonPre value={output} variant={variant} />;
   } else if (output !== undefined) {
-    body = <JsonPre value={JSON.stringify(output, null, 2)} />;
+    body = (
+      <JsonPre value={JSON.stringify(output, null, 2)} variant={variant} />
+    );
   }
+
+  const isDark = variant === "dark" && !errorText;
 
   return (
     <div className={cn("space-y-2", className)} {...props}>
-      <h4 className="text-xs font-medium uppercase tracking-wide text-[#64748b]">
+      <h4
+        className={cn(
+          "text-xs font-medium uppercase tracking-wide",
+          isDark ? "text-[#94a3b8]" : "text-[#64748b]",
+        )}
+      >
         {errorText ? "Error" : "Result"}
       </h4>
       <div
         className={cn(
           "overflow-x-auto rounded-md",
-          errorText ? "bg-red-50" : "bg-[#f8fafc]",
+          errorText
+            ? "bg-red-50"
+            : isDark
+              ? "bg-[#0f172a]"
+              : "bg-[#f8fafc]",
         )}
       >
         {body}

@@ -1,76 +1,28 @@
 "use client";
 
+import {
+  CryptoChartPreview,
+  EtfInflowsPreview,
+  IndexSnapshotPreview,
+  resolveSosovaluePreview,
+  resolveStructuredContent,
+} from "@/components/sosovalue-tool-preview";
 import { ToolOutput } from "@/components/ai-elements/tool";
 import type { MapsToolPart } from "@/lib/maps-chat-shared";
 import { getToolName } from "@/lib/maps-chat-shared";
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object") return null;
-  return value as Record<string, unknown>;
-}
+const SOSO_TEXT_TOOLS = new Set([
+  "search-crypto",
+  "get-crypto-detail",
+  "search-place",
+  "get-place-detail",
+]);
 
-function resolveMapUrl(output: unknown): string | null {
-  const root = asRecord(output);
-  if (!root) return null;
-
-  const structured =
-    asRecord(root.structuredContent) ??
-    asRecord(root.structured_content) ??
-    asRecord(root.args) ??
-    root;
-
-  if (typeof structured.embedUrl === "string" && structured.embedUrl.trim()) {
-    return structured.embedUrl;
-  }
-  const mapUrl =
-    typeof structured.mapUrl === "string" ? structured.mapUrl.trim() : "";
-  if (mapUrl && mapUrl.includes("/maps/embed/")) {
-    return mapUrl;
-  }
-  return null;
-}
-
-function parseToolTextOutput(output: unknown): unknown {
-  const root = asRecord(output);
-  if (!root) return output;
-
-  if (root.structuredContent !== undefined) {
-    return root.structuredContent;
-  }
-
-  const content = root.content;
-  if (Array.isArray(content)) {
-    for (const item of content) {
-      const block = asRecord(item);
-      if (block?.type === "text" && typeof block.text === "string") {
-        return block.text;
-      }
-    }
-  }
-
-  return output;
-}
-
-function MapEmbedPreview({
-  mapUrl,
-  title = "Map preview",
-}: {
-  mapUrl: string;
-  title?: string;
-}) {
-  return (
-    <iframe
-      src={mapUrl}
-      title={title}
-      width={640}
-      height={400}
-      loading="lazy"
-      referrerPolicy="no-referrer-when-downgrade"
-      allowFullScreen
-      className="h-[min(70vh,360px)] w-full rounded-lg border border-[#e2e8f0]"
-    />
-  );
-}
+const SOSO_WIDGET_TOOLS = new Set([
+  "show-crypto-chart",
+  "show-etf-inflows",
+  "show-index-snapshot",
+]);
 
 export function MapsToolResult({ part }: { part: MapsToolPart }) {
   const toolName = getToolName(part);
@@ -83,26 +35,21 @@ export function MapsToolResult({ part }: { part: MapsToolPart }) {
     return null;
   }
 
-  if (
-    toolName === "show-map-at-coordinates" ||
-    toolName === "show-directions" ||
-    toolName === "show-street-view"
-  ) {
-    const mapUrl = resolveMapUrl(part.output);
-    if (mapUrl) {
-      const title =
-        toolName === "show-directions"
-          ? "Directions preview"
-          : toolName === "show-street-view"
-            ? "Street View preview"
-            : "Map preview";
-      return <MapEmbedPreview mapUrl={mapUrl} title={title} />;
+  if (SOSO_WIDGET_TOOLS.has(toolName)) {
+    const preview = resolveSosovaluePreview(part.output);
+    if (preview?.type === "chart") {
+      return <CryptoChartPreview payload={preview.payload} />;
+    }
+    if (preview?.type === "etf") {
+      return <EtfInflowsPreview payload={preview.payload} />;
+    }
+    if (preview?.type === "index") {
+      return <IndexSnapshotPreview payload={preview.payload} />;
     }
   }
 
-  if (toolName === "search-place" || toolName === "get-place-detail") {
-    const textOrData = parseToolTextOutput(part.output);
-    return <ToolOutput output={textOrData} />;
+  if (SOSO_TEXT_TOOLS.has(toolName)) {
+    return <ToolOutput output={resolveStructuredContent(part.output)} />;
   }
 
   return <ToolOutput output={part.output} />;
