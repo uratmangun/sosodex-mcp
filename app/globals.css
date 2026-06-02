@@ -217,4 +217,40 @@ body {
     color: #ffffff !important;
     border: 1px solid #334155;
   }
+
+  /* Markdown tables use a dark chip (bg-sidebar); force readable light text. */
+  .maps-quota-light [data-streamdown="table-wrapper"] {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+    color: #ffffff !important;
+  }
+
+  .maps-quota-light [data-streamdown="table-wrapper"] table,
+  .maps-quota-light [data-streamdown="table-wrapper"] thead,
+  .maps-quota-light [data-streamdown="table-wrapper"] tbody,
+  .maps-quota-light [data-streamdown="table-wrapper"] tr,
+  .maps-quota-light [data-streamdown="table-wrapper"] th,
+  .maps-quota-light [data-streamdown="table-wrapper"] td,
+  .maps-quota-light [data-streamdown="table-wrapper"] p,
+  .maps-quota-light [data-streamdown="table-wrapper"] span,
+  .maps-quota-light [data-streamdown="table-wrapper"] div {
+    color: #ffffff !important;
+  }
+
+  .maps-quota-light [data-streamdown="table-wrapper"] th {
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+  }
+
+  .maps-quota-light [data-streamdown="table-wrapper"] td {
+    border-color: #334155 !important;
+  }
+
+  .maps-quota-light [data-streamdown="table-wrapper"] button {
+    color: #94a3b8 !important;
+  }
+
+  .maps-quota-light [data-streamdown="table-wrapper"] button:hover {
+    color: #ffffff !important;
+  }
 }

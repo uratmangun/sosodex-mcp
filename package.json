@@ -8,9 +8,21 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "xmcp build && node scripts/patch-xmcp-adapter.mjs && node scripts/sync-ui-bundles.mjs && next build",
-    "start": "next start",
+    "start": "node scripts/webreel/start-standalone-prod.mjs",
     "lint": "eslint app components lib src --ext .ts,.tsx,.js,.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo:steps": "node scripts/webreel/build-steps.mjs",
+    "demo:steps:screenshots": "node scripts/webreel/build-steps-with-screenshots.mjs",
+    "demo:clean": "node scripts/webreel/clean-screenshots.mjs",
+    "demo:patch": "node scripts/webreel/patch-headless-screenshots.mjs",
+    "demo:preview": "pnpm run demo:clean && pnpm run demo:patch && pnpm run demo:steps:screenshots && webreel preview sosovalue-tools-guest-demo --verbose",
+    "demo:record": "pnpm run demo:clean && pnpm run demo:patch && pnpm run demo:steps:screenshots && webreel record sosovalue-tools-guest-demo --verbose",
+    "demo:record:visible": "pnpm run demo:clean && pnpm run demo:patch && pnpm run demo:steps:screenshots && node scripts/webreel/record-with-preview.mjs sosovalue-tools-guest-demo --verbose",
+    "demo:record:prod": "node scripts/webreel/record-prod-headless.mjs sosovalue-tools-guest-demo --verbose",
+    "demo:record:prod:fast": "node scripts/webreel/record-prod-headless.mjs sosovalue-tools-guest-demo --verbose --skip-build",
+    "demo:record:prod:visible": "node scripts/webreel/record-prod-headless.mjs sosovalue-tools-guest-demo --verbose --headed",
+    "demo:record:headless": "pnpm run demo:record",
+    "demo:screenshots": "pnpm run demo:clean && pnpm run demo:patch && pnpm run demo:steps:screenshots && webreel record sosovalue-tools-guest-demo --verbose"
   },
   "repository": {
     "type": "git",
@@ -63,7 +75,8 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.3",
     "tailwindcss": "^4.2.2",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "webreel": "^0.1.4"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

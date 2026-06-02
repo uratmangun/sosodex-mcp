@@ -46,6 +46,13 @@ async function loadXmcpTools(): Promise<Record<string, XmcpToolEntry>> {
     toolsPromise = (async () => {
       const searchCrypto = await import("@/src/tools/search-crypto");
       const getCryptoDetail = await import("@/src/tools/get-crypto-detail");
+      const searchNews = await import("@/src/tools/search-news");
+      const getNewsHot = await import("@/src/tools/get-news-hot");
+      const getMacroEvents = await import("@/src/tools/get-macro-events");
+      const getMarketOverview = await import("@/src/tools/get-market-overview");
+      const getSectorSpotlight = await import("@/src/tools/get-sector-spotlight");
+      const listIndices = await import("@/src/tools/list-indices");
+      const getEtfSummary = await import("@/src/tools/get-etf-summary");
 
       return {
         "search-crypto": {
@@ -84,6 +91,69 @@ async function loadXmcpTools(): Promise<Record<string, XmcpToolEntry>> {
           _meta: toolUiMetaFor("show-index-snapshot"),
           execute: async () => ({}),
         },
+        "search-news": {
+          description: searchNews.metadata.description,
+          inputSchema: z.object(searchNews.schema),
+          execute: asExecute(
+            searchNews.default as (
+              args: Record<string, unknown>,
+            ) => Promise<unknown>,
+          ),
+        },
+        "get-news-hot": {
+          description: getNewsHot.metadata.description,
+          inputSchema: z.object(getNewsHot.schema),
+          execute: asExecute(
+            getNewsHot.default as (
+              args: Record<string, unknown>,
+            ) => Promise<unknown>,
+          ),
+        },
+        "get-macro-events": {
+          description: getMacroEvents.metadata.description,
+          inputSchema: z.object(getMacroEvents.schema),
+          execute: asExecute(
+            getMacroEvents.default as (
+              args: Record<string, unknown>,
+            ) => Promise<unknown>,
+          ),
+        },
+        "get-market-overview": {
+          description: getMarketOverview.metadata.description,
+          inputSchema: z.object(getMarketOverview.schema),
+          execute: asExecute(
+            getMarketOverview.default as (
+              args: Record<string, unknown>,
+            ) => Promise<unknown>,
+          ),
+        },
+        "get-sector-spotlight": {
+          description: getSectorSpotlight.metadata.description,
+          inputSchema: z.object(getSectorSpotlight.schema),
+          execute: asExecute(
+            getSectorSpotlight.default as (
+              args: Record<string, unknown>,
+            ) => Promise<unknown>,
+          ),
+        },
+        "list-indices": {
+          description: listIndices.metadata.description,
+          inputSchema: z.object(listIndices.schema),
+          execute: asExecute(
+            listIndices.default as (
+              args: Record<string, unknown>,
+            ) => Promise<unknown>,
+          ),
+        },
+        "get-etf-summary": {
+          description: getEtfSummary.metadata.description,
+          inputSchema: z.object(getEtfSummary.schema),
+          execute: asExecute(
+            getEtfSummary.default as (
+              args: Record<string, unknown>,
+            ) => Promise<unknown>,
+          ),
+        },
       };
     })();
   }
@@ -118,11 +188,11 @@ async function createMcpServer(): Promise<McpServer> {
     },
     {
       instructions: [
-        "Use search-crypto to find one currency per page (TOON: id, symbol, name, pagination).",
-        "Use get-crypto-detail with currency.id for price, market cap, and 24h change.",
-        "Use show-crypto-chart with currencyId and symbol for a daily price chart widget.",
-        "Use show-etf-inflows with an ETF ticker (e.g. IBIT) for net inflow history widget.",
-        "Use show-index-snapshot with an index ticker (e.g. ssimag7) for index ROI widget.",
+        "Crypto: search-crypto → get-crypto-detail → show-crypto-chart.",
+        "ETF: get-etf-summary (BTC/ETH aggregate) or show-etf-inflows (per ticker e.g. IBIT).",
+        "Indices: list-indices → show-index-snapshot.",
+        "News: search-news or get-news-hot.",
+        "Macro/regime: get-macro-events, get-market-overview, get-sector-spotlight.",
       ].join(" "),
       capabilities: {
         tools: { listChanged: true },

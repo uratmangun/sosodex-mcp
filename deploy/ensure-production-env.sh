@@ -24,6 +24,7 @@ set_kv NEXT_PUBLIC_GPT_APP_ORIGIN "$PROD_ORIGIN"
 set_kv NEXT_PUBLIC_MCP_APP_ORIGIN "$PROD_ORIGIN"
 # Pod network hostname (Next binds to pod IP, not 127.0.0.1)
 set_kv MCP_CHAT_URL "http://termux-stack:3004/mcp"
+set_kv MCP_INTERNAL_HOST "termux-stack"
 set_kv DATABASE_PATH "/data/google-map-test.sqlite"
 set_kv NODE_ENV "production"
 set_kv NEXT_PUBLIC_POSTHOG_HOST "/ingest"

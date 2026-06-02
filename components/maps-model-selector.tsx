@@ -121,6 +121,7 @@ export function MapsModelSelector({
   return (
     <ModelSelector onOpenChange={setOpen} open={open}>
       <ModelSelectorTrigger
+        data-testid="model-selector-trigger"
         className="inline-flex h-8 max-w-[min(100%,20rem)] cursor-pointer items-center gap-1.5 rounded-md px-2 font-normal text-[#0f172a] hover:bg-[#f8fafc] hover:text-[#0f172a] disabled:pointer-events-none disabled:opacity-50"
         disabled={disabled || modelsLoading || models.length === 0}
       >

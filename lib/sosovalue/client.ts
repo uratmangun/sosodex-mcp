@@ -181,3 +181,112 @@ export async function getEtfHistory(
 export function sosovalueProfileUrl(symbol: string): string {
   return `https://sosovalue.com/assets/coins/${encodeURIComponent(symbol.toLowerCase())}`;
 }
+
+export type SosoNewsHotPage = {
+  list: SosoNewsItem[];
+  page: number;
+  page_size: number;
+  total: number;
+};
+
+export type SosoMacroEvent = {
+  date: string;
+  events: string[];
+};
+
+export type SosoMacroEventHistoryRow = {
+  date: string;
+  actual: string;
+  forecast: string;
+  previous: string;
+};
+
+export type SosoEtfSummaryRow = {
+  date: string;
+  total_net_inflow: number;
+  total_value_traded: number;
+  total_net_assets: number;
+  cum_net_inflow: number;
+};
+
+export type SosoSectorRow = {
+  sector?: string;
+  symbol?: string;
+  change_pct_24h?: number;
+  marketcap?: number;
+  dominance?: number;
+};
+
+export async function getNewsHot(
+  options: { page?: number; pageSize?: number } = {},
+): Promise<SosoNewsHotPage> {
+  const data = await sosoGet<SosoNewsHotPage>("/news/hot", {
+    page: options.page ?? 1,
+    page_size: options.pageSize ?? 10,
+  });
+  return {
+    list: data.list ?? [],
+    page: data.page ?? 1,
+    page_size: data.page_size ?? 10,
+    total: data.total ?? 0,
+  };
+}
+
+export async function getMacroEvents(): Promise<SosoMacroEvent[]> {
+  const data = await sosoGet<SosoMacroEvent[] | { list?: SosoMacroEvent[] }>(
+    "/macro/events",
+  );
+  return Array.isArray(data) ? data : (data.list ?? []);
+}
+
+export async function getMacroEventHistory(
+  eventName: string,
+  options: { limit?: number } = {},
+): Promise<SosoMacroEventHistoryRow[]> {
+  const data = await sosoGet<SosoMacroEventHistoryRow[]>(
+    `/macro/events/${encodeURIComponent(eventName)}/history`,
+    { limit: options.limit ?? 30 },
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getMarketOverview(): Promise<Record<string, unknown>> {
+  const data = await sosoGet<Record<string, unknown>>("/market/overview");
+  return data ?? {};
+}
+
+export async function getSectorSpotlight(
+  options: { currencyId?: string } = {},
+): Promise<Record<string, unknown>> {
+  return sosoGet<Record<string, unknown>>("/currencies/sector-spotlight", {
+    currency_id: options.currencyId,
+  });
+}
+
+export async function getEtfSummaryHistory(
+  symbol: string,
+  options: { countryCode?: string; limit?: number } = {},
+): Promise<SosoEtfSummaryRow[]> {
+  const data = await sosoGet<SosoEtfSummaryRow[]>(
+    "/etfs/summary-history",
+    {
+      symbol: symbol.toUpperCase(),
+      country_code: options.countryCode ?? "US",
+      limit: options.limit ?? 30,
+    },
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+export async function listEtfTickers(
+  symbol: string,
+  options: { countryCode?: string } = {},
+): Promise<Array<{ ticker: string; name?: string; exchange?: string }>> {
+  const data = await sosoGet<
+    Array<{ ticker: string; name?: string; exchange?: string }>
+  >("/etfs", {
+    symbol: symbol.toUpperCase(),
+    country_code: options.countryCode ?? "US",
+  });
+  return Array.isArray(data) ? data : [];
+}

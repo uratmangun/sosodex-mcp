@@ -2,17 +2,33 @@ import "server-only";
 
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
+import { anonymous } from "better-auth/plugins";
 
-import { getAppUrl, getAuthDatabase, getAuthSecret } from "@/lib/auth-db";
+import {
+  getAppUrl,
+  getAuthDatabase,
+  getAuthSecret,
+  getTrustedOrigins,
+} from "@/lib/auth-db";
 
 const appUrl = getAppUrl();
 
 export const auth = betterAuth({
-  appName: "Google Map Test",
+  appName: "SoSoValue Assistant",
   baseURL: appUrl,
-  trustedOrigins: [appUrl, "https://maps.uratmangun.ovh"],
+  trustedOrigins: getTrustedOrigins(),
   secret: getAuthSecret(),
   database: getAuthDatabase(),
+  plugins: [
+    anonymous({
+      generateName: () => "Guest",
+      generateRandomEmail: () => {
+        const id = crypto.randomUUID();
+        return `guest-${id}@guest.sosodex.local`;
+      },
+    }),
+    nextCookies(),
+  ],
   socialProviders: {
     google: {
       clientId:
@@ -26,7 +42,6 @@ export const auth = betterAuth({
       prompt: "select_account",
     },
   },
-  plugins: [nextCookies()],
 });
 
 export type BetterAuthSession = NonNullable<

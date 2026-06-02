@@ -1,3 +1,4 @@
+import { FREE_DEMO_MODEL, normalizeChatModel } from "@/lib/maps-model-defaults";
 import { DEFAULT_MODEL } from "@/lib/maps-system-prompt";
 import {
   validateProviderBaseUrl,
@@ -92,7 +93,7 @@ export function getServerDefaultProvider() {
   const baseURL = process.env.AI_PROVIDER_BASE_URL?.trim() ?? "";
   const apiKey = process.env.AI_PROVIDER_API_KEY?.trim() || undefined;
   const defaultModel =
-    process.env.AI_PROVIDER_DEFAULT_MODEL?.trim() || DEFAULT_MODEL;
+    process.env.AI_PROVIDER_DEFAULT_MODEL?.trim() || FREE_DEMO_MODEL;
 
   return { baseURL, apiKey, defaultModel };
 }
@@ -166,7 +167,12 @@ export function resolveChatModel(
   clientModel: string | undefined,
   resolved: Extract<ResolvedAiProvider, { ok: true }>,
 ) {
+  const usesCustomProvider = resolved.source === "custom";
   const trimmed = clientModel?.trim();
-  if (trimmed) return trimmed;
-  return resolved.defaultModel;
+
+  if (trimmed) {
+    return normalizeChatModel(trimmed, { usesCustomProvider });
+  }
+
+  return normalizeChatModel(resolved.defaultModel, { usesCustomProvider });
 }

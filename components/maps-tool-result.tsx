@@ -14,8 +14,13 @@ import { getToolName } from "@/lib/maps-chat-shared";
 const SOSO_TEXT_TOOLS = new Set([
   "search-crypto",
   "get-crypto-detail",
-  "search-place",
-  "get-place-detail",
+  "search-news",
+  "get-news-hot",
+  "get-macro-events",
+  "get-market-overview",
+  "get-sector-spotlight",
+  "list-indices",
+  "get-etf-summary",
 ]);
 
 const SOSO_WIDGET_TOOLS = new Set([

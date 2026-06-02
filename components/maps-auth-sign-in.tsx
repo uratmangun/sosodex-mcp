@@ -29,9 +29,9 @@ function GoogleIcon({ className }: { className?: string }) {
 }
 
 export function MapsAuthSignIn({
-  title = "Sign in to use SoSoValue assistant",
+  title = "Use the SoSoValue assistant",
   description =
-    "Sign in with your Google account to chat, load models, and use SoSoValue MCP tools.",
+    "Continue as guest (no password) or sign in with Google. Guest chats are saved to SQLite like signed-in sessions.",
   callbackURL = "/",
   className,
 }: {
@@ -47,6 +47,15 @@ export function MapsAuthSignIn({
     });
   };
 
+  const signInAsGuest = async () => {
+    await authClient.signIn.anonymous();
+    const returnTo =
+      callbackURL && callbackURL !== "/"
+        ? callbackURL
+        : `${window.location.pathname}${window.location.search}`;
+    window.location.assign(returnTo);
+  };
+
   return (
     <div
       className={cn(
@@ -60,14 +69,29 @@ export function MapsAuthSignIn({
         <h2 className="text-lg font-semibold text-[#0f172a]">{title}</h2>
         <p className="max-w-md text-[13px] text-[#64748b]">{description}</p>
       </div>
-      <Button
-        type="button"
-        onClick={() => void signInWithGoogle()}
-        className="rounded-lg bg-[#dc2626] px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-[#b91c1c] hover:text-white [&_svg]:text-white"
-      >
-        <GoogleIcon className="mr-2" />
-        Sign in with Google
-      </Button>
+      <div className="flex w-full max-w-xs flex-col gap-2">
+        <Button
+          type="button"
+          data-testid="guest-sign-in"
+          onClick={() => void signInAsGuest()}
+          className="w-full rounded-lg bg-[#0f172a] px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1e293b] hover:text-white"
+        >
+          Continue as guest
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void signInWithGoogle()}
+          className="w-full rounded-lg border-[#e2e8f0] bg-white px-6 py-2.5 text-[13px] font-semibold text-[#334155] hover:bg-[#f8fafc]"
+        >
+          <GoogleIcon className="mr-2" />
+          Sign in with Google
+        </Button>
+      </div>
+      <p className="max-w-sm text-[11px] text-[#94a3b8]">
+        Guest mode saves your chats locally and in SQLite — no password or Google account
+        required.
+      </p>
       </div>
     </div>
   );

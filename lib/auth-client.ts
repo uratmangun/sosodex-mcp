@@ -1,6 +1,7 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
+import { anonymousClient } from "better-auth/client/plugins";
 
 function getClientAuthBaseUrl(): string | undefined {
   if (typeof window === "undefined") return undefined;
@@ -9,4 +10,5 @@ function getClientAuthBaseUrl(): string | undefined {
 
 export const authClient = createAuthClient({
   baseURL: getClientAuthBaseUrl(),
+  plugins: [anonymousClient()],
 });

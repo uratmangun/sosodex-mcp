@@ -1,0 +1,165 @@
+{
+  "steps": [
+    { "action": "pause", "ms": 2000, "description": "Landing" },
+    {
+      "action": "wait",
+      "selector": "[data-testid=guest-sign-in]",
+      "timeout": 90000,
+      "description": "Sign-in screen hydrated"
+    },
+    {
+      "action": "click",
+      "selector": "[data-testid=guest-sign-in]",
+      "label": "Guest sign-in",
+      "delay": 500
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-input]",
+      "timeout": 90000,
+      "description": "Chat ready for demo"
+    },
+    {
+      "action": "click",
+      "selector": "[data-testid=model-selector-trigger]",
+      "label": "Open model picker",
+      "delay": 600
+    },
+    {
+      "action": "click",
+      "text": "minimax-m3-free",
+      "label": "MiniMax free model",
+      "delay": 800
+    },
+    {
+      "action": "key",
+      "key": "Escape",
+      "description": "Close model picker",
+      "delay": 600
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-ready]",
+      "timeout": 180000,
+      "description": "Ready for search-crypto prompt"
+    },
+    {
+      "action": "click",
+      "selector": "[data-testid=chat-input]",
+      "label": "Focus chat input",
+      "delay": 300
+    },
+    {
+      "action": "key",
+      "key": "cmd+a",
+      "description": "Clear chat input"
+    },
+    {
+      "action": "type",
+      "text": "Search Bitcoin and Ethereum on SoSoValue",
+      "selector": "[data-testid=chat-input]",
+      "label": "search-crypto prompt"
+    },
+    {
+      "action": "click",
+      "selector": "[data-testid=chat-submit]",
+      "label": "Send search-crypto",
+      "delay": 400
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-busy]",
+      "timeout": 30000,
+      "description": "search-crypto request started"
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-last-turn-ready]",
+      "timeout": 180000,
+      "description": "search-crypto response done"
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-ready]",
+      "timeout": 180000,
+      "description": "Ready for show-crypto-chart prompt"
+    },
+    {
+      "action": "click",
+      "selector": "[data-testid=chat-input]",
+      "label": "Focus chat input",
+      "delay": 300
+    },
+    {
+      "action": "key",
+      "key": "cmd+a",
+      "description": "Clear chat input"
+    },
+    {
+      "action": "type",
+      "text": "Show the daily price chart for ETH using show-crypto-chart",
+      "selector": "[data-testid=chat-input]",
+      "label": "show-crypto-chart prompt"
+    },
+    {
+      "action": "click",
+      "selector": "[data-testid=chat-submit]",
+      "label": "Send show-crypto-chart",
+      "delay": 400
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-busy]",
+      "timeout": 30000,
+      "description": "show-crypto-chart request started"
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-last-turn-ready]",
+      "timeout": 180000,
+      "description": "show-crypto-chart response done"
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-ready]",
+      "timeout": 180000,
+      "description": "Ready for search-news prompt"
+    },
+    {
+      "action": "click",
+      "selector": "[data-testid=chat-input]",
+      "label": "Focus chat input",
+      "delay": 300
+    },
+    {
+      "action": "key",
+      "key": "cmd+a",
+      "description": "Clear chat input"
+    },
+    {
+      "action": "type",
+      "text": "search-news ethereum ETF",
+      "selector": "[data-testid=chat-input]",
+      "label": "search-news prompt"
+    },
+    {
+      "action": "click",
+      "selector": "[data-testid=chat-submit]",
+      "label": "Send search-news",
+      "delay": 400
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-busy]",
+      "timeout": 30000,
+      "description": "search-news request started"
+    },
+    {
+      "action": "wait",
+      "selector": "[data-testid=chat-last-turn-ready]",
+      "timeout": 180000,
+      "description": "search-news response done"
+    },
+    { "action": "pause", "ms": 2000, "description": "End" }
+  ]
+}

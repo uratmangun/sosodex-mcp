@@ -1,0 +1,16 @@
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "outDir": "./videos",
+  "baseUrl": "http://localhost:3000",
+  "viewport": { "width": 1280, "height": 800 },
+  "defaultDelay": 500,
+  "clickDwell": 120,
+  "videos": {
+    "sosovalue-tools-guest-demo": {
+      "url": "/?webreel=1",
+      "output": "sosovalue-tools-guest-demo.mp4",
+      "include": ["./scripts/webreel/sosovalue-guest-steps.json"],
+      "steps": []
+    }
+  }
+}

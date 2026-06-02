@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   MiniBarChart,
   MiniLineChart,
@@ -71,23 +72,75 @@ function pct(value: number | undefined): string {
   return `${(value * 100).toFixed(2)}%`;
 }
 
+function WidgetPreviewReady({
+  toolName,
+  children,
+}: {
+  toolName: string;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    setReady(false);
+    const markReady = () => {
+      const height = ref.current?.offsetHeight ?? 0;
+      if (height > 48) {
+        setReady(true);
+      }
+    };
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(markReady);
+    });
+    const timers = [80, 200, 500, 1000].map((ms) =>
+      window.setTimeout(markReady, ms),
+    );
+    const element = ref.current;
+    const observer = new ResizeObserver(() => {
+      markReady();
+    });
+    if (element) {
+      observer.observe(element);
+    }
+    return () => {
+      cancelAnimationFrame(raf);
+      for (const id of timers) {
+        clearTimeout(id);
+      }
+      observer.disconnect();
+    };
+  }, [children]);
+
+  return (
+    <div
+      ref={ref}
+      data-testid={ready ? `tool-widget-ready-${toolName}` : undefined}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function CryptoChartPreview({ payload }: { payload: CryptoChartPayload }) {
   const closes = payload.klines.map((k) => Number(k.close));
 
   return (
-    <div className={PANEL_CLASS}>
-      <MiniLineChart
-        values={closes}
-        label={`${payload.symbol} · daily close (SoSoValue)`}
-        stroke="#f87171"
-        variant="dark"
-      />
-      <p className="mt-2 text-xs text-[#cbd5e1]">
-        <a href={payload.profileUrl} target="_blank" rel="noreferrer">
-          View on SoSoValue
-        </a>
-      </p>
-    </div>
+    <WidgetPreviewReady toolName="show-crypto-chart">
+      <div className={PANEL_CLASS}>
+        <MiniLineChart
+          values={closes}
+          label={`${payload.symbol} · daily close (SoSoValue)`}
+          stroke="#f87171"
+          variant="dark"
+        />
+        <p className="mt-2 text-xs text-[#cbd5e1]">
+          <a href={payload.profileUrl} target="_blank" rel="noreferrer">
+            View on SoSoValue
+          </a>
+        </p>
+      </div>
+    </WidgetPreviewReady>
   );
 }
 
@@ -96,15 +149,17 @@ export function EtfInflowsPreview({ payload }: { payload: EtfInflowsPayload }) {
   const labels = payload.rows.map((r) => String(r.date).slice(0, 10));
 
   return (
-    <div className={PANEL_CLASS}>
-      <MiniBarChart
-        values={values}
-        labels={labels}
-        label={`${payload.ticker} · daily net inflow (USD)`}
-        fill="#f87171"
-        variant="dark"
-      />
-    </div>
+    <WidgetPreviewReady toolName="show-etf-inflows">
+      <div className={PANEL_CLASS}>
+        <MiniBarChart
+          values={values}
+          labels={labels}
+          label={`${payload.ticker} · daily net inflow (USD)`}
+          fill="#f87171"
+          variant="dark"
+        />
+      </div>
+    </WidgetPreviewReady>
   );
 }
 
@@ -116,6 +171,7 @@ export function IndexSnapshotPreview({
   const s = payload.snapshot;
 
   return (
+    <WidgetPreviewReady toolName="show-index-snapshot">
     <div className={cn(PANEL_CLASS, "border border-[#1e293b]")}>
       <p className="mb-1 text-xs text-[#94a3b8]">SoSoValue Index</p>
       <p className="mb-3 text-xl font-bold">{payload.indexTicker.toUpperCase()}</p>
@@ -146,6 +202,7 @@ export function IndexSnapshotPreview({
         </a>
       </p>
     </div>
+    </WidgetPreviewReady>
   );
 }
 

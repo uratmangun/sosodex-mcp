@@ -85,6 +85,12 @@
       "skillPath": "SKILL.md",
       "computedHash": "3b1eead0694dd14a8434f41ad471d50331a6323bc9f5ecfd7461ed5574a90d91"
     },
+    "webreel": {
+      "source": "vercel-labs/webreel",
+      "sourceType": "github",
+      "skillPath": "skills/webreel/SKILL.md",
+      "computedHash": "9acf843b0d7baf0afed49309127b4ded8d6c45ce43c9603492e048ba76e5d2d9"
+    },
     "widget-design": {
       "source": "xmcp-dev/skills",
       "sourceType": "github",

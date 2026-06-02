@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, SearchIcon, XIcon } from "lucide-react";
+import { PlusIcon, SearchIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ export function MapsChatSidebar({
   activeThreadId,
   onNewChat,
   onSelectThread,
+  onDeleteThread,
 }: {
   open: boolean;
   onClose: () => void;
@@ -25,6 +26,7 @@ export function MapsChatSidebar({
   activeThreadId: string;
   onNewChat: () => void;
   onSelectThread: (id: string) => void;
+  onDeleteThread: (id: string) => void;
 }) {
   return (
     <>
@@ -60,6 +62,7 @@ export function MapsChatSidebar({
         <div className="border-b border-[#f1f5f9] p-3">
           <Button
             type="button"
+            data-testid="new-chat"
             onClick={onNewChat}
             className="h-9 w-full justify-start gap-2 rounded-lg bg-[#1a73e8] text-[13px] text-white hover:bg-[#1557b0] hover:text-white [&_svg]:text-white"
           >
@@ -92,12 +95,12 @@ export function MapsChatSidebar({
                 const isActive = thread.id === activeThreadId;
                 const messageCount = thread.messages.length;
                 return (
-                  <li key={thread.id}>
+                  <li key={thread.id} className="group/thread relative">
                     <button
                       type="button"
                       onClick={() => onSelectThread(thread.id)}
                       className={cn(
-                        "w-full rounded-lg px-2.5 py-2 text-left transition-colors",
+                        "w-full rounded-lg py-2 pr-9 pl-2.5 text-left transition-colors",
                         isActive
                           ? "bg-[#e8f0fe] text-[#1a73e8]"
                           : "text-[#334155] hover:bg-[#f8fafc]",
@@ -113,6 +116,23 @@ export function MapsChatSidebar({
                         {formatThreadMeta(thread.updatedAt, messageCount)}
                       </span>
                     </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      data-testid="delete-chat"
+                      aria-label={`Delete chat ${thread.title}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteThread(thread.id);
+                      }}
+                      className={cn(
+                        "absolute top-1/2 right-1 size-7 -translate-y-1/2 rounded-md text-[#94a3b8] opacity-0 transition-opacity group-hover/thread:opacity-100 focus-visible:opacity-100",
+                        isActive && "text-[#1a73e8] hover:bg-[#dbeafe] hover:text-[#1d4ed8]",
+                      )}
+                    >
+                      <Trash2Icon className="size-3.5" />
+                    </Button>
                   </li>
                 );
               })}

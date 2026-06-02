@@ -3,7 +3,10 @@
 import type { UIMessage } from "ai";
 import { Loader2Icon, LogOutIcon, MenuIcon } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { isWebreelDemoMode } from "@/lib/maps-demo-tools";
 
 import { MapsAuthSignIn } from "@/components/maps-auth-sign-in";
 import { MapsChatPanel } from "@/components/maps-chat-panel";
@@ -39,6 +42,11 @@ import {
   fetchRemoteChatState,
   saveRemoteChatState,
 } from "@/lib/maps-chat-sync-client";
+import {
+  FREE_DEMO_MODEL,
+  isLegacyFreeDemoModel,
+  normalizeChatModel,
+} from "@/lib/maps-model-defaults";
 import { DEFAULT_MODEL } from "@/lib/maps-system-prompt";
 import type { UiModel } from "@/lib/models";
 import { cn } from "@/lib/utils";
@@ -61,7 +69,17 @@ type ProviderSettings = {
   systemPrompt: string;
 };
 
-const STORAGE_KEY = "maps-assistant-settings-v1";
+const SETTINGS_KEY_PREFIX = "maps-assistant-settings-v1";
+const LEGACY_SETTINGS_KEY = "maps-assistant-settings-v1";
+
+function settingsStorageKey(userId: string): string {
+  return `${SETTINGS_KEY_PREFIX}:${userId}`;
+}
+
+function clearLegacySettingsStorage(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(LEGACY_SETTINGS_KEY);
+}
 
 const FALLBACK_MODELS: UiModel[] = [
   {
@@ -70,50 +88,76 @@ const FALLBACK_MODELS: UiModel[] = [
     provider: "openai",
     providerLabel: "OpenAI-compatible",
   },
+  {
+    id: FREE_DEMO_MODEL,
+    name: FREE_DEMO_MODEL,
+    provider: "openai",
+    providerLabel: "OpenAI-compatible",
+  },
 ];
 
-function loadSettings(): ProviderSettings {
+function defaultSettingsForUser(isGuest: boolean): ProviderSettings {
+  return {
+    baseURL: "",
+    apiKey: "",
+    model: isGuest ? FREE_DEMO_MODEL : DEFAULT_MODEL,
+    systemPrompt: "",
+  };
+}
+
+function loadSettings(userId: string, isGuest: boolean): ProviderSettings {
   if (typeof window === "undefined") {
-    return {
-      baseURL: "",
-      apiKey: "",
-      model: DEFAULT_MODEL,
-      systemPrompt: "",
-    };
+    return defaultSettingsForUser(isGuest);
   }
 
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  clearLegacySettingsStorage();
+  const raw = window.localStorage.getItem(settingsStorageKey(userId));
+  const fallback = defaultSettingsForUser(isGuest);
 
   if (!raw) {
-    return {
-      baseURL: "",
-      apiKey: "",
-      model: DEFAULT_MODEL,
-      systemPrompt: "",
-    };
+    return fallback;
   }
 
   try {
     const parsed = JSON.parse(raw) as Partial<ProviderSettings>;
-    return {
+    const usesCustomProvider = Boolean(parsed.baseURL?.trim());
+    const model = normalizeChatModel(parsed.model, {
+      isGuest,
+      usesCustomProvider,
+    });
+
+    const settings: ProviderSettings = {
       baseURL: parsed.baseURL ?? "",
       apiKey: parsed.apiKey ?? "",
-      model: parsed.model ?? DEFAULT_MODEL,
+      model,
       systemPrompt: parsed.systemPrompt ?? "",
     };
+
+    if (
+      parsed.model?.trim() !== model ||
+      isLegacyFreeDemoModel(parsed.model ?? "")
+    ) {
+      saveSettings(userId, settings);
+    }
+
+    return settings;
   } catch {
-    return {
-      baseURL: "",
-      apiKey: "",
-      model: DEFAULT_MODEL,
-      systemPrompt: "",
-    };
+    return fallback;
   }
 }
 
-function ensureInitialThreads(): { threads: ChatThread[]; activeId: string } {
-  const stored = loadThreads();
-  const activeStored = loadActiveThreadId();
+function saveSettings(userId: string, settings: ProviderSettings): void {
+  if (typeof window === "undefined") return;
+  clearLegacySettingsStorage();
+  window.localStorage.setItem(
+    settingsStorageKey(userId),
+    JSON.stringify(settings),
+  );
+}
+
+function ensureInitialThreads(userId: string): { threads: ChatThread[]; activeId: string } {
+  const stored = loadThreads(userId);
+  const activeStored = loadActiveThreadId(userId);
 
   if (stored.length > 0) {
     const activeId =
@@ -124,12 +168,18 @@ function ensureInitialThreads(): { threads: ChatThread[]; activeId: string } {
   }
 
   const first = createThread();
-  saveThreads([first]);
-  saveActiveThreadId(first.id);
+  saveThreads(userId, [first]);
+  saveActiveThreadId(userId, first.id);
   return { threads: [first], activeId: first.id };
 }
 
 export function HomePageClient() {
+  const searchParams = useSearchParams();
+  const webreelDemo = isWebreelDemoMode(searchParams.toString());
+  const signInCallbackURL =
+    searchParams.toString().length > 0
+      ? `/?${searchParams.toString()}`
+      : "/";
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -141,9 +191,19 @@ export function HomePageClient() {
   const threadsRef = useRef<ChatThread[]>([]);
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const signedIn = Boolean(session?.user);
+  const userId = session?.user?.id ?? "";
+  const isGuest = Boolean(
+    session?.user &&
+      "isAnonymous" in session.user &&
+      session.user.isAnonymous,
+  );
 
-  const [settings, setSettings] = useState<ProviderSettings>(() => loadSettings());
-  const [draftSettings, setDraftSettings] = useState<ProviderSettings>(() => loadSettings());
+  const [settings, setSettings] = useState<ProviderSettings>(() =>
+    defaultSettingsForUser(false),
+  );
+  const [draftSettings, setDraftSettings] = useState<ProviderSettings>(() =>
+    defaultSettingsForUser(false),
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [models, setModels] = useState<UiModel[]>(FALLBACK_MODELS);
   const [modelsMessage, setModelsMessage] = useState<string | null>(null);
@@ -184,9 +244,17 @@ export function HomePageClient() {
   );
 
   useEffect(() => {
+    if (!hydrated || !signedIn || !userId) return;
+
+    const nextSettings = loadSettings(userId, isGuest);
+    setSettings(nextSettings);
+    setDraftSettings(nextSettings);
+  }, [hydrated, signedIn, userId, isGuest]);
+
+  useEffect(() => {
     if (!hydrated) return;
 
-    if (!signedIn) {
+    if (!signedIn || !userId) {
       setServerSynced(false);
       setThreads([]);
       setActiveThreadId(null);
@@ -199,13 +267,13 @@ export function HomePageClient() {
     void (async () => {
       try {
         const remote = await fetchRemoteChatState();
-        const local = loadThreads();
+        const local = loadThreads(userId);
         let nextThreads = dedupeThreads(remote.threads);
         let activeId = remote.activeThreadId;
 
         if (nextThreads.length === 0 && local.length > 0) {
           nextThreads = dedupeThreads(local);
-          const storedActive = loadActiveThreadId();
+          const storedActive = loadActiveThreadId(userId);
           activeId =
             storedActive && nextThreads.some((t) => t.id === storedActive)
               ? storedActive
@@ -230,17 +298,17 @@ export function HomePageClient() {
 
         if (cancelled) return;
 
-        saveThreads(nextThreads);
-        saveActiveThreadId(activeId);
+        saveThreads(userId, nextThreads);
+        saveActiveThreadId(userId, activeId);
         setThreads(nextThreads);
         setActiveThreadId(activeId);
         setServerSynced(true);
       } catch {
         if (cancelled) return;
-        const { threads: initialThreads, activeId } = ensureInitialThreads();
+        const { threads: initialThreads, activeId } = ensureInitialThreads(userId);
         const fallback = dedupeThreads(initialThreads);
-        saveThreads(fallback);
-        saveActiveThreadId(activeId);
+        saveThreads(userId, fallback);
+        saveActiveThreadId(userId, activeId);
         setThreads(fallback);
         setActiveThreadId(activeId);
         setServerSynced(true);
@@ -250,7 +318,7 @@ export function HomePageClient() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, signedIn]);
+  }, [hydrated, signedIn, userId]);
 
   useEffect(() => {
     if (!hydrated || !signedIn) return;
@@ -268,9 +336,9 @@ export function HomePageClient() {
   }, [hydrated, signedIn]);
 
   useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  }, [hydrated, settings]);
+    if (!hydrated || !userId) return;
+    saveSettings(userId, settings);
+  }, [hydrated, settings, userId]);
 
   const modelOptions = useMemo(() => {
     const map = new Map<string, UiModel>();
@@ -338,11 +406,22 @@ export function HomePageClient() {
           payload.data.some((model) => model.id === preferredModel);
 
         if (payload.data.length > 0 && !hasPreferred) {
+          const freeModel = payload.data.find((m) => m.id === FREE_DEMO_MODEL);
           setSettings((prev) => ({
             ...prev,
-            model: payload.data[0]!.id,
+            model: freeModel?.id ?? payload.data[0]!.id,
           }));
         }
+
+        setSettings((prev) => {
+          const usesCustomProvider = prev.baseURL.trim() !== "";
+          const normalized = normalizeChatModel(prev.model, {
+            isGuest,
+            usesCustomProvider,
+          });
+          if (normalized === prev.model) return prev;
+          return { ...prev, model: normalized };
+        });
       } catch {
         setModels(FALLBACK_MODELS);
         setModelsMessage("Could not load models from the configured API.");
@@ -350,7 +429,7 @@ export function HomePageClient() {
       setModelsLoading(false);
     }
   },
-    [defaultProvider],
+    [defaultProvider, isGuest],
   );
 
   useEffect(() => {
@@ -365,6 +444,21 @@ export function HomePageClient() {
     settings.baseURL,
     settings.apiKey,
   ]);
+
+  useEffect(() => {
+    if (!hydrated || settings.baseURL.trim()) return;
+
+    setSettings((prev) => {
+      const normalized = normalizeChatModel(prev.model, {
+        isGuest,
+        usesCustomProvider: false,
+      });
+      if (normalized === prev.model) return prev;
+      const next = { ...prev, model: normalized };
+      if (userId) saveSettings(userId, next);
+      return next;
+    });
+  }, [hydrated, isGuest, settings.baseURL, userId]);
 
   const signOut = useCallback(async () => {
     await authClient.signOut({
@@ -388,25 +482,49 @@ export function HomePageClient() {
 
   const persistThreads = useCallback(
     (next: ChatThread[], opts?: { activeId?: string }) => {
+      if (!userId) return;
       const deduped = dedupeThreads(next);
       setThreads(deduped);
-      saveThreads(deduped);
+      saveThreads(userId, deduped);
       const activeId = opts?.activeId ?? activeThreadIdRef.current;
       if (activeId) {
+        saveActiveThreadId(userId, activeId);
         scheduleServerSync(deduped, activeId);
       }
     },
-    [scheduleServerSync],
+    [scheduleServerSync, userId],
   );
 
   const handleSelectThread = useCallback(
     (id: string) => {
+      if (!userId) return;
       setActiveThreadId(id);
-      saveActiveThreadId(id);
+      saveActiveThreadId(userId, id);
       setSidebarOpen(false);
       scheduleServerSync(threadsRef.current, id);
     },
-    [scheduleServerSync],
+    [scheduleServerSync, userId],
+  );
+
+  const handleDeleteThread = useCallback(
+    (threadId: string) => {
+      if (!userId) return;
+      const current = threadsRef.current;
+      const next = current.filter((t) => t.id !== threadId);
+      let activeId = activeThreadIdRef.current;
+
+      if (next.length === 0) {
+        const fresh = createThread();
+        next.push(fresh);
+        activeId = fresh.id;
+      } else if (activeId === threadId) {
+        activeId = next[0]!.id;
+      }
+
+      setActiveThreadId(activeId);
+      persistThreads(next, { activeId: activeId ?? undefined });
+    },
+    [persistThreads, userId],
   );
 
   useEffect(() => {
@@ -455,14 +573,16 @@ export function HomePageClient() {
             }
           : t,
       );
-      saveThreads(next);
+      if (userId) {
+        saveThreads(userId, next);
+      }
       const activeId = activeThreadIdRef.current;
       if (serverSynced && activeId) {
         scheduleServerSync(next, activeId);
       }
       return next;
     });
-  }, [scheduleServerSync, serverSynced]);
+  }, [scheduleServerSync, serverSynced, userId]);
 
   const handleActiveMessagesChange = useCallback(
     (messages: UIMessage[]) => {
@@ -496,13 +616,14 @@ export function HomePageClient() {
   }
 
   return (
-    <main className="maps-quota-light min-h-screen">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 md:px-6 md:py-6">
+    <main className="maps-quota-light flex min-h-dvh flex-col">
+      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 py-5 md:px-6 md:py-6">
         <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {signedIn ? (
               <Button
                 type="button"
+                data-testid="open-chats"
                 variant="outline"
                 size="icon"
                 onClick={() => setSidebarOpen(true)}
@@ -520,9 +641,14 @@ export function HomePageClient() {
                 SoSoValue assistant
               </h1>
               <p className="text-[12px] text-[#64748b]">
-                {signedIn && session?.user.email
-                  ? session.user.email
-                  : "Crypto, ETFs, and index data from SoSoValue"}
+                {signedIn &&
+                session?.user &&
+                "isAnonymous" in session.user &&
+                session.user.isAnonymous
+                  ? "Guest · chats isolated per session in SQLite"
+                  : signedIn && session?.user.email
+                    ? session.user.email
+                    : "Crypto, ETFs, and index data from SoSoValue"}
               </p>
             </div>
           </div>
@@ -544,7 +670,10 @@ export function HomePageClient() {
         </header>
 
         {!signedIn ? (
-          <MapsAuthSignIn className="flex-1 justify-center" callbackURL="/" />
+          <MapsAuthSignIn
+            className="flex-1 justify-center"
+            callbackURL={signInCallbackURL}
+          />
         ) : !serverSynced || !activeThreadId || !activeThread ? (
           <main className="flex flex-1 items-center justify-center">
             <Loader2Icon className="size-6 animate-spin text-[#64748b]" />
@@ -560,11 +689,12 @@ export function HomePageClient() {
               activeThreadId={activeThreadId}
               onNewChat={handleNewChat}
               onSelectThread={handleSelectThread}
+              onDeleteThread={handleDeleteThread}
             />
 
             <div className="flex min-h-0 flex-1 flex-col gap-3">
               <MapsMcpEndpointCopy className="max-w-none shrink-0" />
-              <div className="min-h-0 min-w-0 flex-1">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                 <MapsChatPanel
                   key={activeThreadId}
                   threadId={activeThreadId}
@@ -574,6 +704,7 @@ export function HomePageClient() {
                   modelsLoading={modelsLoading}
                   modelsMessage={modelsMessage}
                   showModelsAlert={showModelsAlert}
+                  webreelDemo={webreelDemo}
                   onMessagesChange={handleActiveMessagesChange}
                   onOpenSettings={() => {
                     setDraftSettings(settings);
@@ -582,11 +713,8 @@ export function HomePageClient() {
                   onModelChange={(modelId) => {
                     setSettings((prev) => {
                       const next = { ...prev, model: modelId };
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem(
-                          STORAGE_KEY,
-                          JSON.stringify(next),
-                        );
+                      if (userId) {
+                        saveSettings(userId, next);
                       }
                       return next;
                     });

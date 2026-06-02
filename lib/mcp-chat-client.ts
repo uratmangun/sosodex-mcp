@@ -9,12 +9,10 @@ function isLoopbackUrl(url: string): boolean {
   }
 }
 
-/** Server-side MCP URL for /api/chat (same process, often pod hostname not loopback). */
+/** Server-side MCP URL for /api/chat (same Next process). */
 function resolveInternalMcpUrl(): string {
   const port = process.env.PORT?.trim() || "3000";
-  const host =
-    process.env.MCP_INTERNAL_HOST?.trim() ||
-    (process.env.NODE_ENV === "production" ? "termux-stack" : "127.0.0.1");
+  const host = process.env.MCP_INTERNAL_HOST?.trim() || "127.0.0.1";
   return `http://${host}:${port}/mcp`;
 }
 
@@ -24,8 +22,9 @@ export function getMcpChatUrl(): string {
   if (raw) {
     const base = raw.replace(/\/$/, "");
     const url = base.endsWith("/mcp") ? base : `${base}/mcp`;
-    // In Podman pods Next often binds to pod IP only — 127.0.0.1:PORT refuses connections.
-    if (process.env.NODE_ENV === "production" && isLoopbackUrl(url)) {
+    const internalHost = process.env.MCP_INTERNAL_HOST?.trim();
+    // Podman: when MCP_INTERNAL_HOST is set, loopback often cannot reach the bound pod IP.
+    if (internalHost && process.env.NODE_ENV === "production" && isLoopbackUrl(url)) {
       return resolveInternalMcpUrl();
     }
     return url;

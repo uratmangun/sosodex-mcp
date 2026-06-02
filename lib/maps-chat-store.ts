@@ -10,8 +10,35 @@ export type ChatThread = {
   updatedAt: number;
 };
 
-const THREADS_KEY = "maps-assistant-chats-v1";
-const ACTIVE_KEY = "maps-assistant-active-chat-v1";
+const THREADS_KEY_PREFIX = "maps-assistant-chats-v1";
+const ACTIVE_KEY_PREFIX = "maps-assistant-active-chat-v1";
+
+/** Legacy keys (unscoped) — no longer read; cleared on scoped access. */
+const LEGACY_THREADS_KEY = "maps-assistant-chats-v1";
+const LEGACY_ACTIVE_KEY = "maps-assistant-active-chat-v1";
+
+export function chatThreadsStorageKey(userId: string): string {
+  const id = userId.trim();
+  if (!id) {
+    throw new Error("chatThreadsStorageKey requires a user id");
+  }
+  return `${THREADS_KEY_PREFIX}:${id}`;
+}
+
+export function chatActiveStorageKey(userId: string): string {
+  const id = userId.trim();
+  if (!id) {
+    throw new Error("chatActiveStorageKey requires a user id");
+  }
+  return `${ACTIVE_KEY_PREFIX}:${id}`;
+}
+
+/** Drop pre-scoped localStorage so guest and Google sessions cannot bleed. */
+export function clearLegacyChatStorage(): void {
+  if (!isBrowser()) return;
+  window.localStorage.removeItem(LEGACY_THREADS_KEY);
+  window.localStorage.removeItem(LEGACY_ACTIVE_KEY);
+}
 
 const TOOL_STATES = new Set<MapsToolPart["state"]>([
   "approval-requested",
@@ -177,9 +204,10 @@ function normalizeThread(thread: unknown): ChatThread | null {
   };
 }
 
-export function loadThreads(): ChatThread[] {
+export function loadThreads(userId: string): ChatThread[] {
   if (!isBrowser()) return [];
-  const raw = window.localStorage.getItem(THREADS_KEY);
+  clearLegacyChatStorage();
+  const raw = window.localStorage.getItem(chatThreadsStorageKey(userId));
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -195,19 +223,25 @@ export function loadThreads(): ChatThread[] {
   }
 }
 
-export function saveThreads(threads: ChatThread[]) {
+export function saveThreads(userId: string, threads: ChatThread[]) {
   if (!isBrowser()) return;
-  window.localStorage.setItem(THREADS_KEY, JSON.stringify(threads));
+  clearLegacyChatStorage();
+  window.localStorage.setItem(
+    chatThreadsStorageKey(userId),
+    JSON.stringify(threads),
+  );
 }
 
-export function loadActiveThreadId(): string | null {
+export function loadActiveThreadId(userId: string): string | null {
   if (!isBrowser()) return null;
-  return window.localStorage.getItem(ACTIVE_KEY);
+  clearLegacyChatStorage();
+  return window.localStorage.getItem(chatActiveStorageKey(userId));
 }
 
-export function saveActiveThreadId(id: string) {
+export function saveActiveThreadId(userId: string, id: string) {
   if (!isBrowser()) return;
-  window.localStorage.setItem(ACTIVE_KEY, id);
+  clearLegacyChatStorage();
+  window.localStorage.setItem(chatActiveStorageKey(userId), id);
 }
 
 export function createThread(): ChatThread {

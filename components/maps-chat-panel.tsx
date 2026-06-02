@@ -13,7 +13,15 @@ import {
   Settings2Icon,
   Trash2Icon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useStickToBottomContext } from "use-stick-to-bottom";
 
 import { areMessagesEqual } from "@/lib/maps-chat-store";
 import { formatProviderError } from "@/lib/chat-errors";
@@ -44,8 +52,15 @@ import {
 } from "@/components/ai-elements/tool";
 import { MapsToolResult } from "@/components/maps-tool-result";
 import {
+  findLastUserMessageIndex,
   formatToolTitle,
+  getMessageText,
+  getToolName,
+  isAssistantTurnSettled,
+  isChatLastTurnReady,
+  isTurnSummaryReady,
   isToolPart,
+  SOSO_WIDGET_TOOL_NAMES,
 } from "@/lib/maps-chat-shared";
 import { MapsModelSelector } from "@/components/maps-model-selector";
 import {
@@ -62,18 +77,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { UiModel } from "@/lib/models";
+import { DEMO_TOOL_PROMPTS } from "@/lib/maps-demo-tools";
 import { buildChatRequestBody } from "@/lib/maps-chat-request";
 import { DEFAULT_MODEL } from "@/lib/maps-system-prompt";
 
 const MESSAGE_ACTION_CLASS =
   "size-7 rounded-lg text-[#64748b] hover:bg-[#dc2626] hover:text-white [&_svg]:text-current hover:[&_svg]:text-white";
 
-const SUGGESTED_PROMPTS = [
-  "Search Bitcoin and Ethereum on SoSoValue",
-  "Show the daily price chart for ETH using show-crypto-chart",
-  "What are the latest BTC ETF daily net inflows?",
-  "Show a MAG7 index snapshot on SoSoValue",
-];
+const SUGGESTED_PROMPTS = DEMO_TOOL_PROMPTS.map((tool) => ({
+  testId: `demo-tool-${tool.id}`,
+  text: tool.prompt,
+}));
 
 type ProviderSettings = {
   baseURL: string;
@@ -82,21 +96,187 @@ type ProviderSettings = {
   systemPrompt: string;
 };
 
-function getMessageText(message: UIMessage): string {
-  return message.parts
-    .filter((part) => part.type === "text")
-    .map((part) => part.text)
-    .join("\n")
-    .trim();
+function isScrollViewportAtBottom(element: HTMLElement): boolean {
+  return element.scrollHeight - element.scrollTop - element.clientHeight < 16;
 }
 
-function findLastUserMessageIndex(messages: UIMessage[]): number {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index]?.role === "user") {
-      return index;
+const SCROLL_HEIGHT_STABLE_MS = 800;
+const MIN_SCROLLABLE_OVERFLOW_PX = 48;
+
+/**
+ * Webreel-only: wait until turn + scrollport at bottom (does not block user scroll otherwise).
+ * Normal follow-while-streaming is handled by StickToBottom (see AI Elements Conversation).
+ */
+function ChatWebreelCapture({
+  reportReady,
+  messages,
+  lastTurnReady,
+  summaryReady,
+}: {
+  reportReady: boolean;
+  messages: UIMessage[];
+  lastTurnReady: boolean;
+  summaryReady: boolean;
+}) {
+  const { scrollRef, scrollToBottom } = useStickToBottomContext();
+  const [captureReady, setCaptureReady] = useState(false);
+
+  const pendingWidgetTools = useMemo(() => {
+    if (!lastTurnReady) {
+      return [];
     }
+    const lastUserIndex = findLastUserMessageIndex(messages);
+    if (lastUserIndex < 0) {
+      return [];
+    }
+    const names = new Set<string>();
+    for (const message of messages.slice(lastUserIndex + 1)) {
+      if (message.role !== "assistant") {
+        continue;
+      }
+      for (const part of message.parts.filter(isToolPart)) {
+        if (part.state !== "output-available") {
+          continue;
+        }
+        const toolName = getToolName(part);
+        if (SOSO_WIDGET_TOOL_NAMES.has(toolName)) {
+          names.add(toolName);
+        }
+      }
+    }
+    return [...names];
+  }, [lastTurnReady, messages]);
+
+  const areWidgetPreviewsReady = useCallback(() => {
+    if (pendingWidgetTools.length === 0) {
+      return true;
+    }
+    return pendingWidgetTools.every((toolName) =>
+      document.querySelector(`[data-testid="tool-widget-ready-${toolName}"]`),
+    );
+  }, [pendingWidgetTools]);
+
+  useLayoutEffect(() => {
+    if (!reportReady || !lastTurnReady || !summaryReady) {
+      setCaptureReady(false);
+      return;
+    }
+
+    const viewport = scrollRef.current;
+    if (!viewport) {
+      return;
+    }
+
+    let lastHeight = -1;
+    let stableSince = 0;
+    let cancelled = false;
+
+    const evaluate = async () => {
+      if (cancelled) {
+        return;
+      }
+      if (!areWidgetPreviewsReady()) {
+        stableSince = 0;
+        lastHeight = -1;
+        setCaptureReady(false);
+        return;
+      }
+
+      await scrollToBottom({ animation: "instant", ignoreEscapes: true });
+
+      const height = viewport.scrollHeight;
+      const maxTop = Math.max(0, height - viewport.clientHeight);
+      const needsScroll = maxTop >= MIN_SCROLLABLE_OVERFLOW_PX;
+      const atBottom = isScrollViewportAtBottom(viewport);
+      const scrollPositionOk = !needsScroll || viewport.scrollTop >= maxTop - 20;
+      const now = Date.now();
+
+      if (height === lastHeight && atBottom && scrollPositionOk) {
+        if (stableSince === 0) {
+          stableSince = now;
+        }
+        setCaptureReady(now - stableSince >= SCROLL_HEIGHT_STABLE_MS);
+      } else {
+        lastHeight = height;
+        stableSince = now;
+        setCaptureReady(false);
+      }
+    };
+
+    void evaluate();
+    const interval = window.setInterval(() => {
+      void evaluate();
+    }, 100);
+    const timers = [250, 600, 1200, 2500].map((ms) =>
+      window.setTimeout(() => {
+        void evaluate();
+      }, ms),
+    );
+
+    const content = viewport.firstElementChild;
+    const resizeObserver =
+      content &&
+      new ResizeObserver(() => {
+        void evaluate();
+      });
+    if (content && resizeObserver) {
+      resizeObserver.observe(content);
+    }
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      for (const id of timers) {
+        clearTimeout(id);
+      }
+      resizeObserver?.disconnect();
+    };
+  }, [
+    reportReady,
+    lastTurnReady,
+    summaryReady,
+    messages,
+    scrollRef,
+    scrollToBottom,
+    areWidgetPreviewsReady,
+  ]);
+
+  if (!reportReady) {
+    return null;
   }
-  return -1;
+
+  return (
+    <>
+      {lastTurnReady ? (
+        <div
+          data-testid="chat-response-bottom"
+          className="h-px w-full shrink-0"
+          aria-hidden
+        />
+      ) : null}
+      {summaryReady ? (
+        <span
+          data-testid="chat-turn-has-summary"
+          className="sr-only"
+          aria-hidden
+        />
+      ) : null}
+      {captureReady ? (
+        <>
+          <span
+            data-testid="chat-turn-capture-ready"
+            className="sr-only"
+            aria-hidden
+          />
+          <span
+            data-testid="chat-scrolled-to-bottom"
+            className="sr-only"
+            aria-hidden
+          />
+        </>
+      ) : null}
+    </>
+  );
 }
 
 function MapsChatPrompt({
@@ -105,12 +285,18 @@ function MapsChatPrompt({
   models,
   modelsLoading,
   onModelChange,
+  onSendPrompt,
+  showWebreelDemoTools,
+  isSending,
 }: {
   chat: ReturnType<typeof useChat>;
   settings: ProviderSettings;
   models: UiModel[];
   modelsLoading: boolean;
   onModelChange: (modelId: string) => void;
+  onSendPrompt: (prompt: string) => void;
+  showWebreelDemoTools: boolean;
+  isSending: boolean;
 }) {
   const { textInput } = usePromptInputController();
 
@@ -156,7 +342,6 @@ function MapsChatPrompt({
     [chat, handleDismissError, settings],
   );
 
-  const isSending = chat.status === "submitted" || chat.status === "streaming";
   const errorMessage = chat.error ? formatProviderError(chat.error) : null;
 
   return (
@@ -173,9 +358,36 @@ function MapsChatPrompt({
         </Alert>
       ) : null}
 
+      {showWebreelDemoTools ? (
+        <div
+          className="mb-3 flex flex-wrap gap-1.5"
+          data-testid="webreel-demo-tools"
+        >
+          {DEMO_TOOL_PROMPTS.map((tool) => (
+            <Button
+              key={tool.id}
+              type="button"
+              data-testid={`demo-tool-${tool.id}`}
+              disabled={isSending}
+              onClick={() => onSendPrompt(tool.prompt)}
+              className="h-7 rounded-md border-[#e2e8f0] bg-[#f8fafc] px-2 text-[11px] font-medium text-[#334155] hover:border-[#0f172a] hover:bg-white hover:text-[#0f172a]"
+            >
+              {tool.id}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+
+      <span
+        data-testid={isSending ? "chat-busy" : "chat-ready"}
+        className="sr-only"
+        aria-hidden
+      />
       <PromptInput className="w-full" onSubmit={handleSubmitPrompt}>
         <PromptInputBody>
           <PromptInputTextarea
+            id="chat-input"
+            data-testid="chat-input"
             disabled={isSending}
             placeholder="Ask about crypto, ETF inflows, or SoSoValue indices…"
             className="text-[#0f172a] placeholder:text-[#94a3b8]"
@@ -192,6 +404,7 @@ function MapsChatPrompt({
             />
           </PromptInputTools>
           <PromptInputSubmit
+            data-testid="chat-submit"
             onStop={() => void chat.stop()}
             onErrorDismiss={handleDismissError}
             status={chat.status}
@@ -215,6 +428,7 @@ export function MapsChatPanel({
   modelsLoading,
   modelsMessage,
   showModelsAlert,
+  webreelDemo = false,
   onMessagesChange,
   onOpenSettings,
   onModelChange,
@@ -226,6 +440,7 @@ export function MapsChatPanel({
   modelsLoading: boolean;
   modelsMessage: string | null;
   showModelsAlert: boolean;
+  webreelDemo?: boolean;
   onMessagesChange: (messages: UIMessage[]) => void;
   onOpenSettings: () => void;
   onModelChange: (modelId: string) => void;
@@ -306,20 +521,50 @@ export function MapsChatPanel({
     return () => window.removeEventListener("pagehide", flushMessages);
   }, [chat.messages]);
 
+  const [sendPending, setSendPending] = useState(false);
+
+  useEffect(() => {
+    if (chat.status !== "submitted" && chat.status !== "streaming") {
+      setSendPending(false);
+    }
+  }, [chat.status]);
+
+  const isSending =
+    sendPending ||
+    chat.status === "submitted" ||
+    chat.status === "streaming";
+
+  const lastTurnReady = isChatLastTurnReady(chat.messages, isSending);
+  const summaryReady = isTurnSummaryReady(chat.messages, isSending);
+  const lastUserIndex = findLastUserMessageIndex(chat.messages);
+  const lastSettledAssistantId = lastTurnReady
+    ? [...chat.messages.slice(lastUserIndex + 1)]
+        .reverse()
+        .find(
+          (message) =>
+            message.role === "assistant" && isAssistantTurnSettled(message),
+        )?.id
+    : undefined;
+
   const handleSuggestedPrompt = useCallback(
     (prompt: string) => {
-      if (chat.status === "submitted" || chat.status === "streaming") {
+      if (isSending) {
         return;
       }
-      void chat.sendMessage(
-        {
-          role: "user",
-          parts: [{ type: "text", text: prompt }],
-        },
-        { body: buildChatRequestBody(settings) },
-      );
+      setSendPending(true);
+      void chat
+        .sendMessage(
+          {
+            role: "user",
+            parts: [{ type: "text", text: prompt }],
+          },
+          { body: buildChatRequestBody(settings) },
+        )
+        .catch(() => {
+          setSendPending(false);
+        });
     },
-    [chat, settings],
+    [chat, isSending, settings],
   );
 
   const copyMessageText = useCallback(async (text: string) => {
@@ -330,7 +575,7 @@ export function MapsChatPanel({
     }
   }, []);
 
-  const isSending = chat.status === "submitted" || chat.status === "streaming";
+  const [showWebreelDemoTools] = useState(webreelDemo);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -356,7 +601,7 @@ export function MapsChatPanel({
   }, [chat, isSending, pendingDeleteId]);
 
   return (
-    <div className="flex min-h-[68vh] flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.03)]">
+    <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.03)]">
       <div className="flex items-center justify-between gap-3 border-b border-[#f1f5f9] px-5 py-4">
         <div className="flex items-center gap-2.5">
           <span className="flex size-7 items-center justify-center rounded-lg bg-[#fef2f2] text-[#dc2626]">
@@ -393,9 +638,17 @@ export function MapsChatPanel({
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col">
-        <Conversation className="min-h-[420px] flex-1">
-          <ConversationContent className="gap-6 px-4 py-6">
+      <div className="flex flex-col overflow-hidden">
+        {/*
+          Fixed viewport height (AI Elements pattern: bounded shell + internal scroll).
+          calc leaves room for page header, MCP banner, panel header, and prompt input.
+        */}
+        <div
+          className="relative h-[calc(100dvh-11rem)] min-h-[36rem] w-full shrink-0 overflow-hidden"
+          data-testid="chat-conversation-shell"
+        >
+          <Conversation className="absolute inset-0 size-full">
+          <ConversationContent className="gap-6">
             {chat.messages.length === 0 ? (
               <ConversationEmptyState
                 title="What can SoSoValue help you explore?"
@@ -405,13 +658,14 @@ export function MapsChatPanel({
                 <div className="flex w-full max-w-lg flex-col gap-2">
                   {SUGGESTED_PROMPTS.map((prompt) => (
                     <Button
-                      key={prompt}
+                      key={prompt.testId}
                       type="button"
+                      data-testid={prompt.testId}
                       variant="outline"
                       className="h-auto justify-start whitespace-normal rounded-lg border-[#e2e8f0] bg-[#f8fafc] px-3.5 py-3 text-left text-[13px] font-normal text-[#334155] transition-colors hover:border-black hover:bg-white hover:text-black"
-                      onClick={() => handleSuggestedPrompt(prompt)}
+                      onClick={() => handleSuggestedPrompt(prompt.text)}
                     >
-                      {prompt}
+                      {prompt.text}
                     </Button>
                   ))}
                 </div>
@@ -427,9 +681,20 @@ export function MapsChatPanel({
               const messageText = textParts.map((part) => part.text).join("\n");
               const hasText = messageText.trim().length > 0;
 
+              const isLastSettledTurn =
+                message.id === lastSettledAssistantId && lastTurnReady;
+
               return (
                 <div
                   key={message.id}
+                  data-testid={
+                    isLastSettledTurn
+                      ? "chat-last-turn-ready"
+                      : message.role === "assistant" &&
+                          isAssistantTurnSettled(message)
+                        ? "chat-assistant-turn"
+                        : undefined
+                  }
                   className={cn(
                     "flex w-full max-w-[95%] flex-col gap-1",
                     message.role === "user" && "ml-auto items-end",
@@ -472,7 +737,7 @@ export function MapsChatPanel({
                     <MessageContent
                       className={cn(
                         message.role === "assistant" &&
-                          "w-full text-[#0f172a] [&_p]:text-[#0f172a] [&_li]:text-[#0f172a] [&_ol]:text-[#0f172a] [&_ul]:text-[#0f172a] [&_strong]:text-[#0f172a] [&_em]:text-[#0f172a] [&_h1]:text-[#0f172a] [&_h2]:text-[#0f172a] [&_h3]:text-[#0f172a] [&_a]:text-[#dc2626] [&_[data-streamdown=code-block-body]]:bg-[#f1f5f9] [&_[data-streamdown=code-block-body]]:text-[#0f172a] [&_[data-streamdown=code-block-body]]:border [&_[data-streamdown=code-block-body]]:border-[#e2e8f0] [&_[data-streamdown=inline-code]]:border [&_[data-streamdown=inline-code]]:border-[#334155] [&_[data-streamdown=inline-code]]:bg-[#0f172a] [&_[data-streamdown=inline-code]]:text-white",
+                          "w-full text-[#0f172a] [&_p]:text-[#0f172a] [&_li]:text-[#0f172a] [&_ol]:text-[#0f172a] [&_ul]:text-[#0f172a] [&_strong]:text-[#0f172a] [&_em]:text-[#0f172a] [&_h1]:text-[#0f172a] [&_h2]:text-[#0f172a] [&_h3]:text-[#0f172a] [&_a]:text-[#dc2626] [&_[data-streamdown=code-block-body]]:bg-[#f1f5f9] [&_[data-streamdown=code-block-body]]:text-[#0f172a] [&_[data-streamdown=code-block-body]]:border [&_[data-streamdown=code-block-body]]:border-[#e2e8f0] [&_[data-streamdown=inline-code]]:border [&_[data-streamdown=inline-code]]:border-[#334155] [&_[data-streamdown=inline-code]]:bg-[#0f172a] [&_[data-streamdown=inline-code]]:text-white [&_[data-streamdown=table-wrapper]]:border-[#334155] [&_[data-streamdown=table-wrapper]]:bg-[#0f172a] [&_[data-streamdown=table-wrapper]]:text-white [&_[data-streamdown=table-wrapper]_th]:text-[#e2e8f0] [&_[data-streamdown=table-wrapper]_td]:text-white",
                       )}
                     >
                       {textParts.map((part, index) => (
@@ -526,9 +791,16 @@ export function MapsChatPanel({
                 </div>
               );
             })}
+            <ChatWebreelCapture
+              reportReady={showWebreelDemoTools}
+              messages={chat.messages}
+              lastTurnReady={lastTurnReady}
+              summaryReady={summaryReady}
+            />
           </ConversationContent>
           <ConversationScrollButton />
-        </Conversation>
+          </Conversation>
+        </div>
 
         <PromptInputProvider>
           <MapsChatPrompt
@@ -536,7 +808,10 @@ export function MapsChatPanel({
             models={models}
             modelsLoading={modelsLoading}
             onModelChange={onModelChange}
+            onSendPrompt={handleSuggestedPrompt}
             settings={settings}
+            showWebreelDemoTools={showWebreelDemoTools}
+            isSending={isSending}
           />
         </PromptInputProvider>
       </div>

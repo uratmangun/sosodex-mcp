@@ -12,3 +12,8 @@ tsconfig.tsbuildinfo
 !.env.example
 data/
 gcp/
+.webreel/
+videos/
+scripts/webreel/sosovalue-guest-steps.json
+screenshot/*.png
+!screenshot/.gitkeep

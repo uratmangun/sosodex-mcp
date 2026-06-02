@@ -21,7 +21,7 @@ function isLocalAppUrl(url: string): boolean {
 
 const PRODUCTION_APP_ORIGIN = "https://maps.uratmangun.ovh";
 
-/** Auth base URL for OAuth callbacks. In production, never returns localhost. */
+/** Auth base URL for OAuth callbacks. Honors BETTER_AUTH_URL for local production (`pnpm start`). */
 export function getAppUrl(): string {
   const candidates = [
     process.env.BETTER_AUTH_URL,
@@ -33,6 +33,11 @@ export function getAppUrl(): string {
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
 
+  const explicitAuthUrl = process.env.BETTER_AUTH_URL?.trim();
+  if (explicitAuthUrl) {
+    return explicitAuthUrl.replace(/\/$/, "");
+  }
+
   if (process.env.NODE_ENV === "production") {
     const publicUrl = candidates.find((url) => !isLocalAppUrl(url));
     if (publicUrl) return publicUrl.replace(/\/$/, "");
@@ -41,6 +46,16 @@ export function getAppUrl(): string {
 
   const configured = candidates.find((url) => !isLocalAppUrl(url)) ?? candidates[0];
   return (configured ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
+/** Origins allowed for Better Auth (browser may use localhost or 127.0.0.1). */
+export function getTrustedOrigins(): string[] {
+  const origins = new Set<string>([getAppUrl(), PRODUCTION_APP_ORIGIN]);
+  if (isLocalAppUrl(getAppUrl())) {
+    origins.add("http://localhost:3000");
+    origins.add("http://127.0.0.1:3000");
+  }
+  return [...origins];
 }
 
 export function getAuthSecret(): string {
