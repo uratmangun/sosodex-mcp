@@ -807,12 +807,15 @@ export const PromptInput = ({
       event.preventDefault();
 
       const form = event.currentTarget;
+      const formData = new FormData(form);
+      const formMessage = String(formData.get("message") ?? "").trim();
+      const textarea = form.querySelector<HTMLTextAreaElement>(
+        'textarea[name="message"], [data-testid="chat-input"]',
+      );
+      const domMessage = textarea?.value.trim() ?? "";
       const text = usingProvider
-        ? controller.textInput.value
-        : (() => {
-            const formData = new FormData(form);
-            return (formData.get("message") as string) || "";
-          })();
+        ? controller.textInput.value.trim() || formMessage || domMessage
+        : formMessage || domMessage;
 
       if (!usingProvider) {
         form.reset();

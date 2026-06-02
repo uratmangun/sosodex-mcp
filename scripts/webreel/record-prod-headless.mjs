@@ -12,6 +12,10 @@ import {
   startStandaloneServer,
   waitForServer,
 } from "./start-standalone-prod.mjs";
+import {
+  ensureChatSubmitPatch,
+  removeChatSubmitPatch,
+} from "./patch-runner-chat-submit.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "../..");
@@ -70,25 +74,30 @@ async function main() {
     await run("node", ["scripts/webreel/build-steps.mjs"]);
   }
 
-  if (headed) {
-    console.log(
-      `\nRecording (visible Chrome) against ${started.baseUrl}…\n`,
-    );
-    await run("node", [
-      "scripts/webreel/record-with-preview.mjs",
-      videoName,
-      ...(verbose ? ["--verbose"] : []),
-    ]);
-  } else {
-    const recordArgs = [
-      "exec",
-      "webreel",
-      "record",
-      videoName,
-      ...(verbose ? ["--verbose"] : []),
-    ];
-    console.log(`\nRecording (headless) against ${started.baseUrl}…\n`);
-    await run("pnpm", recordArgs);
+  ensureChatSubmitPatch();
+  try {
+    if (headed) {
+      console.log(
+        `\nRecording (visible Chrome) against ${started.baseUrl}…\n`,
+      );
+      await run("node", [
+        "scripts/webreel/record-with-preview.mjs",
+        videoName,
+        ...(verbose ? ["--verbose"] : []),
+      ]);
+    } else {
+      const recordArgs = [
+        "exec",
+        "webreel",
+        "record",
+        videoName,
+        ...(verbose ? ["--verbose"] : []),
+      ];
+      console.log(`\nRecording (headless) against ${started.baseUrl}…\n`);
+      await run("pnpm", recordArgs);
+    }
+  } finally {
+    removeChatSubmitPatch();
   }
 }
 

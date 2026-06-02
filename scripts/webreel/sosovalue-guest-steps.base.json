@@ -44,27 +44,28 @@
       "description": "Ready for search-crypto prompt"
     },
     {
-      "action": "click",
-      "selector": "[data-testid=chat-input]",
-      "label": "Focus chat input",
-      "delay": 300
-    },
-    {
-      "action": "key",
-      "key": "cmd+a",
-      "description": "Clear chat input"
+      "action": "wait",
+      "selector": "[data-testid=webreel-demo-tools]",
+      "timeout": 30000,
+      "description": "Webreel recorder bridge ready"
     },
     {
       "action": "type",
       "text": "Search Bitcoin and Ethereum on SoSoValue",
       "selector": "[data-testid=chat-input]",
-      "label": "search-crypto prompt"
+      "label": "search-crypto prompt",
+      "delay": 300
+    },
+    {
+      "action": "pause",
+      "ms": 400,
+      "description": "Prompt input synced after search-crypto type"
     },
     {
       "action": "click",
       "selector": "[data-testid=chat-submit]",
       "label": "Send search-crypto",
-      "delay": 400
+      "delay": 500
     },
     {
       "action": "wait",
@@ -85,27 +86,22 @@
       "description": "Ready for show-crypto-chart prompt"
     },
     {
-      "action": "click",
-      "selector": "[data-testid=chat-input]",
-      "label": "Focus chat input",
-      "delay": 300
-    },
-    {
-      "action": "key",
-      "key": "cmd+a",
-      "description": "Clear chat input"
-    },
-    {
       "action": "type",
       "text": "Show the daily price chart for ETH using show-crypto-chart",
       "selector": "[data-testid=chat-input]",
-      "label": "show-crypto-chart prompt"
+      "label": "show-crypto-chart prompt",
+      "delay": 300
+    },
+    {
+      "action": "pause",
+      "ms": 400,
+      "description": "Prompt input synced after show-crypto-chart type"
     },
     {
       "action": "click",
       "selector": "[data-testid=chat-submit]",
       "label": "Send show-crypto-chart",
-      "delay": 400
+      "delay": 500
     },
     {
       "action": "wait",
@@ -126,27 +122,22 @@
       "description": "Ready for search-news prompt"
     },
     {
-      "action": "click",
-      "selector": "[data-testid=chat-input]",
-      "label": "Focus chat input",
-      "delay": 300
-    },
-    {
-      "action": "key",
-      "key": "cmd+a",
-      "description": "Clear chat input"
-    },
-    {
       "action": "type",
       "text": "search-news ethereum ETF",
       "selector": "[data-testid=chat-input]",
-      "label": "search-news prompt"
+      "label": "search-news prompt",
+      "delay": 300
+    },
+    {
+      "action": "pause",
+      "ms": 400,
+      "description": "Prompt input synced after search-news type"
     },
     {
       "action": "click",
       "selector": "[data-testid=chat-submit]",
       "label": "Send search-news",
-      "delay": 400
+      "delay": 500
     },
     {
       "action": "wait",

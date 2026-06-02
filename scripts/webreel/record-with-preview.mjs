@@ -9,6 +9,11 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  ensureChatSubmitPatch,
+  removeChatSubmitPatch,
+} from "./patch-runner-chat-submit.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "../..");
 
@@ -64,7 +69,8 @@ function removeRunnerPatch() {
   }
 }
 
-const patched = ensureRunnerPatch();
+const patchedHeaded = ensureRunnerPatch();
+const patchedSubmit = ensureChatSubmitPatch();
 const videoArgs = process.argv.slice(2);
 const child = spawn(
   "pnpm",
@@ -82,9 +88,10 @@ function cleanup(code) {
     return;
   }
   exiting = true;
-  if (patched) {
+  if (patchedHeaded) {
     removeRunnerPatch();
   }
+  removeChatSubmitPatch();
   process.exit(code ?? 1);
 }
 

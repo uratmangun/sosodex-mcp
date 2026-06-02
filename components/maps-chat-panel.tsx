@@ -63,6 +63,15 @@ import {
   SOSO_WIDGET_TOOL_NAMES,
 } from "@/lib/maps-chat-shared";
 import { MapsModelSelector } from "@/components/maps-model-selector";
+
+declare global {
+  interface Window {
+    /** Webreel recorder: set prompt text in React state (?webreel=1 only). */
+    __webreelSetChatInput?: (text: string) => void;
+    /** Webreel recorder: send current prompt; returns false if empty or busy. */
+    __webreelSendChat?: () => boolean;
+  }
+}
 import {
   PromptInput,
   PromptInputBody,
@@ -318,7 +327,13 @@ function MapsChatPrompt({
 
   const handleSubmitPrompt = useCallback(
     ({ text }: { text: string }) => {
-      const content = text.trim();
+      // Webreel types via CDP keys; React state can lag behind the textarea value.
+      const domText = showWebreelDemoTools
+        ? document
+            .querySelector<HTMLTextAreaElement>("[data-testid=chat-input]")
+            ?.value.trim() ?? ""
+        : "";
+      const content = (text.trim() || domText).trim();
       if (
         !content ||
         chat.status === "submitted" ||
@@ -339,8 +354,42 @@ function MapsChatPrompt({
         { body: buildChatRequestBody(settings) },
       );
     },
-    [chat, handleDismissError, settings],
+    [chat, handleDismissError, settings, showWebreelDemoTools],
   );
+
+  useEffect(() => {
+    if (!showWebreelDemoTools) {
+      delete window.__webreelSetChatInput;
+      delete window.__webreelSendChat;
+      return;
+    }
+
+    window.__webreelSetChatInput = (text: string) => {
+      textInput.setInput(text);
+    };
+
+    window.__webreelSendChat = () => {
+      const domText =
+        document
+          .querySelector<HTMLTextAreaElement>("[data-testid=chat-input]")
+          ?.value.trim() ?? "";
+      const content = (textInput.value.trim() || domText).trim();
+      if (
+        !content ||
+        chat.status === "submitted" ||
+        chat.status === "streaming"
+      ) {
+        return false;
+      }
+      handleSubmitPrompt({ text: content });
+      return true;
+    };
+
+    return () => {
+      delete window.__webreelSetChatInput;
+      delete window.__webreelSendChat;
+    };
+  }, [showWebreelDemoTools, textInput, chat.status, handleSubmitPrompt]);
 
   const errorMessage = chat.error ? formatProviderError(chat.error) : null;
 
@@ -383,7 +432,17 @@ function MapsChatPrompt({
         className="sr-only"
         aria-hidden
       />
-      <PromptInput className="w-full" onSubmit={handleSubmitPrompt}>
+      <PromptInput
+        className="w-full"
+        onSubmit={(message, event) => {
+          const domText = showWebreelDemoTools
+            ? event.currentTarget.querySelector<HTMLTextAreaElement>(
+                "[data-testid=chat-input]",
+              )?.value ?? ""
+            : "";
+          handleSubmitPrompt({ text: message.text || domText });
+        }}
+      >
         <PromptInputBody>
           <PromptInputTextarea
             id="chat-input"
