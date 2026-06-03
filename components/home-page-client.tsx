@@ -7,6 +7,10 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { isWebreelDemoMode } from "@/lib/maps-demo-tools";
+import {
+  WEBREEL_VIEWPORT_HEIGHT,
+  WEBREEL_VIEWPORT_WIDTH,
+} from "@/lib/webreel-layout";
 
 import { MapsAuthSignIn } from "@/components/maps-auth-sign-in";
 import { MapsChatPanel } from "@/components/maps-chat-panel";
@@ -616,9 +620,33 @@ export function HomePageClient() {
   }
 
   return (
-    <main className="maps-quota-light flex min-h-dvh flex-col">
-      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 py-5 md:px-6 md:py-6">
-        <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <main
+      className={cn(
+        "maps-quota-light flex min-h-dvh flex-col",
+        webreelDemo &&
+          "box-border min-h-0 overflow-hidden",
+      )}
+      style={
+        webreelDemo
+          ? { height: WEBREEL_VIEWPORT_HEIGHT, maxHeight: WEBREEL_VIEWPORT_HEIGHT }
+          : undefined
+      }
+    >
+      <div
+        className={cn(
+          "mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 py-5 md:px-6 md:py-6",
+          webreelDemo && "h-full min-h-0 max-w-none flex-none px-4 py-3",
+        )}
+        style={
+          webreelDemo ? { maxWidth: WEBREEL_VIEWPORT_WIDTH } : undefined
+        }
+      >
+        <header
+          className={cn(
+            "mb-5 flex flex-wrap items-center justify-between gap-3",
+            webreelDemo && "mb-3 shrink-0",
+          )}
+        >
           <div className="flex items-center gap-3">
             {signedIn ? (
               <Button
@@ -692,11 +720,21 @@ export function HomePageClient() {
               onDeleteThread={handleDeleteThread}
             />
 
-            <div className="flex min-h-0 flex-1 flex-col gap-3">
-              <MapsMcpEndpointCopy className="max-w-none shrink-0" />
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div
+              className={cn(
+                "flex min-h-0 flex-1 flex-col gap-3",
+                webreelDemo && "min-h-0 flex-1 gap-0",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex min-h-0 min-w-0 flex-1 flex-col",
+                  webreelDemo && "min-h-0 flex-1",
+                )}
+              >
                 <MapsChatPanel
                   key={activeThreadId}
+                  className={webreelDemo ? "h-full min-h-0" : undefined}
                   threadId={activeThreadId}
                   initialMessages={activeThread.messages}
                   settings={settings}
@@ -747,6 +785,7 @@ export function HomePageClient() {
 
           <div className="max-h-[calc(90dvh-12rem)] overflow-y-auto overscroll-contain bg-popover px-4 pt-2 pb-3">
             <FieldGroup className="gap-5 pb-0">
+            <MapsMcpEndpointCopy className="max-w-none shrink-0" />
             <Field>
               <FieldLabel htmlFor="base-url">Custom provider URL (optional)</FieldLabel>
               <FieldContent>

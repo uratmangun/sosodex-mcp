@@ -20,6 +20,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from "react";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 
@@ -70,6 +71,8 @@ declare global {
     __webreelSetChatInput?: (text: string) => void;
     /** Webreel recorder: send current prompt; returns false if empty or busy. */
     __webreelSendChat?: () => boolean;
+    /** Webreel recorder: scroll chat viewport to bottom. */
+    __webreelScrollChatToBottom?: () => void;
   }
 }
 import {
@@ -109,8 +112,50 @@ function isScrollViewportAtBottom(element: HTMLElement): boolean {
   return element.scrollHeight - element.scrollTop - element.clientHeight < 16;
 }
 
-const SCROLL_HEIGHT_STABLE_MS = 800;
+function scrollableOverflowParent(element: HTMLElement): HTMLElement | null {
+  let node: HTMLElement | null = element.parentElement;
+  while (node) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
+/** StickToBottom overflow is on scrollRef; testid is on the inner content node. */
+function getChatScrollViewport(
+  scrollRef: RefObject<HTMLElement | null>,
+): HTMLElement | null {
+  const refEl = scrollRef.current;
+  if (refEl instanceof HTMLElement) {
+    const { overflowY } = getComputedStyle(refEl);
+    if (overflowY === "auto" || overflowY === "scroll") {
+      return refEl;
+    }
+    const parent = scrollableOverflowParent(refEl);
+    if (parent) {
+      return parent;
+    }
+  }
+  const inner = document.querySelector<HTMLElement>(
+    "[data-testid=chat-scroll-viewport]",
+  );
+  if (!inner) {
+    return null;
+  }
+  return scrollableOverflowParent(inner) ?? inner;
+}
+
+function forceScrollViewportToBottom(viewport: HTMLElement) {
+  viewport.scrollTop = viewport.scrollHeight;
+}
+
+const SCROLL_HEIGHT_STABLE_MS = 250;
 const MIN_SCROLLABLE_OVERFLOW_PX = 48;
+const CAPTURE_READY_MAX_WAIT_MS = 6_000;
+const CAPTURE_READY_FAILSAFE_MS = 3_500;
 
 /**
  * Webreel-only: wait until turn + scrollport at bottom (does not block user scroll otherwise).
@@ -129,6 +174,7 @@ function ChatWebreelCapture({
 }) {
   const { scrollRef, scrollToBottom } = useStickToBottomContext();
   const [captureReady, setCaptureReady] = useState(false);
+  const captureFailsafeRef = useRef(false);
 
   const pendingWidgetTools = useMemo(() => {
     if (!lastTurnReady) {
@@ -167,21 +213,29 @@ function ChatWebreelCapture({
 
   useLayoutEffect(() => {
     if (!reportReady || !lastTurnReady || !summaryReady) {
+      captureFailsafeRef.current = false;
       setCaptureReady(false);
-      return;
-    }
-
-    const viewport = scrollRef.current;
-    if (!viewport) {
       return;
     }
 
     let lastHeight = -1;
     let stableSince = 0;
     let cancelled = false;
+    const startedAt = Date.now();
+    captureFailsafeRef.current = false;
+
+    const markCaptureReady = () => {
+      captureFailsafeRef.current = true;
+      setCaptureReady(true);
+    };
 
     const evaluate = async () => {
-      if (cancelled) {
+      if (cancelled || captureFailsafeRef.current) {
+        return;
+      }
+      const elapsed = Date.now() - startedAt;
+      if (elapsed >= CAPTURE_READY_FAILSAFE_MS && areWidgetPreviewsReady()) {
+        markCaptureReady();
         return;
       }
       if (!areWidgetPreviewsReady()) {
@@ -191,7 +245,18 @@ function ChatWebreelCapture({
         return;
       }
 
+      const viewport = getChatScrollViewport(scrollRef);
+      if (!viewport) {
+        if (elapsed >= 1200) {
+          markCaptureReady();
+        } else {
+          setCaptureReady(false);
+        }
+        return;
+      }
+
       await scrollToBottom({ animation: "instant", ignoreEscapes: true });
+      forceScrollViewportToBottom(viewport);
 
       const height = viewport.scrollHeight;
       const maxTop = Math.max(0, height - viewport.clientHeight);
@@ -200,11 +265,26 @@ function ChatWebreelCapture({
       const scrollPositionOk = !needsScroll || viewport.scrollTop >= maxTop - 20;
       const now = Date.now();
 
+      if (
+        !needsScroll ||
+        (atBottom && scrollPositionOk) ||
+        elapsed >= CAPTURE_READY_MAX_WAIT_MS
+      ) {
+        if (!needsScroll || atBottom || elapsed >= 1500) {
+          markCaptureReady();
+          return;
+        }
+      }
+
       if (height === lastHeight && atBottom && scrollPositionOk) {
         if (stableSince === 0) {
           stableSince = now;
         }
-        setCaptureReady(now - stableSince >= SCROLL_HEIGHT_STABLE_MS);
+        if (now - stableSince >= SCROLL_HEIGHT_STABLE_MS) {
+          markCaptureReady();
+        } else {
+          setCaptureReady(false);
+        }
       } else {
         lastHeight = height;
         stableSince = now;
@@ -216,25 +296,40 @@ function ChatWebreelCapture({
     const interval = window.setInterval(() => {
       void evaluate();
     }, 100);
-    const timers = [250, 600, 1200, 2500].map((ms) =>
+    const timers = [250, 600, 1200, 2500, 5000].map((ms) =>
       window.setTimeout(() => {
         void evaluate();
       }, ms),
     );
+    const failsafeTimer = window.setTimeout(() => {
+      if (!cancelled && areWidgetPreviewsReady()) {
+        markCaptureReady();
+      }
+    }, CAPTURE_READY_FAILSAFE_MS);
 
-    const content = viewport.firstElementChild;
-    const resizeObserver =
-      content &&
-      new ResizeObserver(() => {
+    let resizeObserver: ResizeObserver | undefined;
+    const attachResizeObserver = () => {
+      const viewport = getChatScrollViewport(scrollRef);
+      const content =
+        viewport?.querySelector("[data-testid=chat-scroll-viewport]") ??
+        viewport?.firstElementChild;
+      if (!content) {
+        return;
+      }
+      resizeObserver?.disconnect();
+      resizeObserver = new ResizeObserver(() => {
         void evaluate();
       });
-    if (content && resizeObserver) {
       resizeObserver.observe(content);
-    }
+    };
+    attachResizeObserver();
+    const attachTimer = window.setTimeout(attachResizeObserver, 50);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
+      clearTimeout(attachTimer);
+      clearTimeout(failsafeTimer);
       for (const id of timers) {
         clearTimeout(id);
       }
@@ -361,11 +456,19 @@ function MapsChatPrompt({
     if (!showWebreelDemoTools) {
       delete window.__webreelSetChatInput;
       delete window.__webreelSendChat;
+      delete window.__webreelScrollChatToBottom;
       return;
     }
 
     window.__webreelSetChatInput = (text: string) => {
       textInput.setInput(text);
+    };
+
+    window.__webreelScrollChatToBottom = () => {
+      const viewport = getChatScrollViewport({ current: null });
+      if (viewport) {
+        forceScrollViewportToBottom(viewport);
+      }
     };
 
     window.__webreelSendChat = () => {
@@ -388,6 +491,7 @@ function MapsChatPrompt({
     return () => {
       delete window.__webreelSetChatInput;
       delete window.__webreelSendChat;
+      delete window.__webreelScrollChatToBottom;
     };
   }, [showWebreelDemoTools, textInput, chat.status, handleSubmitPrompt]);
 
@@ -488,6 +592,7 @@ export function MapsChatPanel({
   modelsMessage,
   showModelsAlert,
   webreelDemo = false,
+  className,
   onMessagesChange,
   onOpenSettings,
   onModelChange,
@@ -500,6 +605,7 @@ export function MapsChatPanel({
   modelsMessage: string | null;
   showModelsAlert: boolean;
   webreelDemo?: boolean;
+  className?: string;
   onMessagesChange: (messages: UIMessage[]) => void;
   onOpenSettings: () => void;
   onModelChange: (modelId: string) => void;
@@ -660,7 +766,13 @@ export function MapsChatPanel({
   }, [chat, isSending, pendingDeleteId]);
 
   return (
-    <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.03)]">
+    <div
+      className={cn(
+        "flex w-full flex-col overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.03)]",
+        webreelDemo && "min-h-0 flex-1",
+        className,
+      )}
+    >
       <div className="flex items-center justify-between gap-3 border-b border-[#f1f5f9] px-5 py-4">
         <div className="flex items-center gap-2.5">
           <span className="flex size-7 items-center justify-center rounded-lg bg-[#fef2f2] text-[#dc2626]">
@@ -697,13 +809,22 @@ export function MapsChatPanel({
         </div>
       ) : null}
 
-      <div className="flex flex-col overflow-hidden">
+      <div
+        className={cn(
+          "flex flex-col overflow-hidden",
+          webreelDemo && "min-h-0 flex-1",
+        )}
+      >
         {/*
-          Fixed viewport height (AI Elements pattern: bounded shell + internal scroll).
-          calc leaves room for page header, MCP banner, panel header, and prompt input.
+          Bounded shell + internal scroll. Webreel uses flex-1 so the prompt stays in frame.
         */}
         <div
-          className="relative h-[calc(100dvh-11rem)] min-h-[36rem] w-full shrink-0 overflow-hidden"
+          className={cn(
+            "relative w-full overflow-hidden",
+            webreelDemo
+              ? "min-h-0 flex-1"
+              : "h-[calc(100dvh-11rem)] min-h-[36rem] shrink-0",
+          )}
           data-testid="chat-conversation-shell"
         >
           <Conversation className="absolute inset-0 size-full">
@@ -861,6 +982,7 @@ export function MapsChatPanel({
           </Conversation>
         </div>
 
+        <div className={webreelDemo ? "shrink-0" : undefined}>
         <PromptInputProvider>
           <MapsChatPrompt
             chat={chat}
@@ -873,6 +995,7 @@ export function MapsChatPanel({
             isSending={isSending}
           />
         </PromptInputProvider>
+        </div>
       </div>
 
       <MapsMessageDeleteDialog

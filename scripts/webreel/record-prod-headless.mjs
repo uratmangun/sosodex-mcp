@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * Build production app, serve standalone on :3000, run webreel record.
- * Pass --headed for visible Chrome (recommended when using screenshot steps).
+ * --headed: visible Chrome + screenshot steps (build-steps-with-screenshots).
+ * Default: same steps as headed but no screenshots; records under Xvfb with
+ * Chrome for Testing under Xvfb (reliable frames in CI / headless agents).
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, rmSync } from "node:fs";
@@ -52,7 +54,9 @@ async function cleanScreenshotDir() {
 }
 
 async function main() {
-  await cleanScreenshotDir();
+  if (headed) {
+    await cleanScreenshotDir();
+  }
 
   if (!skipBuild) {
     console.log("Building production app…\n");
@@ -70,11 +74,15 @@ async function main() {
     console.log("\nGenerating steps with screenshots (headed)…\n");
     await run("node", ["scripts/webreel/build-steps-with-screenshots.mjs"]);
   } else {
-    console.log("\nGenerating steps without screenshots (headless)…\n");
+    console.log(
+      "\nGenerating steps (headless: same flow as headed, no screenshots)…\n",
+    );
     await run("node", ["scripts/webreel/build-steps.mjs"]);
   }
 
-  ensureChatSubmitPatch();
+  mkdirSync(resolve(root, ".webreel", "raw"), { recursive: true });
+  mkdirSync(resolve(root, "videos"), { recursive: true });
+
   try {
     if (headed) {
       console.log(
@@ -86,15 +94,14 @@ async function main() {
         ...(verbose ? ["--verbose"] : []),
       ]);
     } else {
-      const recordArgs = [
-        "exec",
-        "webreel",
-        "record",
+      console.log(
+        `\nRecording (Xvfb + Chrome for Testing, no screenshots) against ${started.baseUrl}…\n`,
+      );
+      await run("node", [
+        "scripts/webreel/record-xvfb.mjs",
         videoName,
         ...(verbose ? ["--verbose"] : []),
-      ];
-      console.log(`\nRecording (headless) against ${started.baseUrl}…\n`);
-      await run("pnpm", recordArgs);
+      ]);
     }
   } finally {
     removeChatSubmitPatch();

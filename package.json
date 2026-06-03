@@ -19,6 +19,7 @@
     "demo:record": "pnpm run demo:clean && pnpm run demo:patch && pnpm run demo:steps:screenshots && webreel record sosovalue-tools-guest-demo --verbose",
     "demo:record:visible": "pnpm run demo:clean && pnpm run demo:patch && pnpm run demo:steps:screenshots && node scripts/webreel/record-with-preview.mjs sosovalue-tools-guest-demo --verbose",
     "demo:record:prod": "node scripts/webreel/record-prod-headless.mjs sosovalue-tools-guest-demo --verbose",
+    "demo:record:prod:headless": "node scripts/webreel/record-prod-headless.mjs sosovalue-tools-guest-demo --verbose",
     "demo:record:prod:fast": "node scripts/webreel/record-prod-headless.mjs sosovalue-tools-guest-demo --verbose --skip-build",
     "demo:record:prod:visible": "node scripts/webreel/record-prod-headless.mjs sosovalue-tools-guest-demo --verbose --headed",
     "demo:record:headless": "pnpm run demo:record",
