@@ -1,5 +1,5 @@
 /** Free model for guest sessions, webreel demos, and local provider defaults. */
-export const FREE_DEMO_MODEL = "minimax-m3-free";
+export const FREE_DEMO_MODEL = "big-pickle";
 
 /** Previously used free models — migrate away on load. */
 export const LEGACY_FREE_DEMO_MODELS = [
