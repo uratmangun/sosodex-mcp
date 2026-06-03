@@ -4,7 +4,7 @@ Next.js app with a **SoSoValue assistant** chat UI and an HTTP **MCP server** at
 
 ## Demo
 
-Guest walkthrough of all 12 SoSoValue MCP tools:
+Guest walkthrough of some SoSoValue MCP tools:
 
 [![Guest demo — click for full video with audio](videos/sosovalue-tools-guest-demo.gif)](https://github.com/uratmangun/sosodex-mcp/releases/download/readme-demo-assets/sosovalue-tools-guest-demo-readme.mp4)
 
