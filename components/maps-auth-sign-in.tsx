@@ -82,7 +82,7 @@ export function MapsAuthSignIn({
           type="button"
           variant="outline"
           onClick={() => void signInWithGoogle()}
-          className="w-full rounded-lg border-[#e2e8f0] bg-white px-6 py-2.5 text-[13px] font-semibold text-[#334155] hover:bg-[#f8fafc]"
+          className="w-full rounded-lg border-[#e2e8f0] bg-white px-6 py-2.5 text-[13px] font-semibold text-[#334155] hover:bg-[#f8fafc] hover:text-black"
         >
           <GoogleIcon className="mr-2" />
           Sign in with Google

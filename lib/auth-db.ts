@@ -19,8 +19,6 @@ function isLocalAppUrl(url: string): boolean {
   }
 }
 
-const PRODUCTION_APP_ORIGIN = "https://maps.uratmangun.ovh";
-
 /** Auth base URL for OAuth callbacks. Honors BETTER_AUTH_URL for local production (`pnpm start`). */
 export function getAppUrl(): string {
   const candidates = [
@@ -41,7 +39,7 @@ export function getAppUrl(): string {
   if (process.env.NODE_ENV === "production") {
     const publicUrl = candidates.find((url) => !isLocalAppUrl(url));
     if (publicUrl) return publicUrl.replace(/\/$/, "");
-    return PRODUCTION_APP_ORIGIN;
+    return "https://sosodex.uratmangun.ovh";
   }
 
   const configured = candidates.find((url) => !isLocalAppUrl(url)) ?? candidates[0];
@@ -50,7 +48,9 @@ export function getAppUrl(): string {
 
 /** Origins allowed for Better Auth (browser may use localhost or 127.0.0.1). */
 export function getTrustedOrigins(): string[] {
-  const origins = new Set<string>([getAppUrl(), PRODUCTION_APP_ORIGIN]);
+  const origins = new Set<string>([getAppUrl()]);
+  const mcpOrigin = process.env.NEXT_PUBLIC_MCP_APP_ORIGIN?.trim();
+  if (mcpOrigin) origins.add(mcpOrigin.replace(/\/$/, ""));
   if (isLocalAppUrl(getAppUrl())) {
     origins.add("http://localhost:3000");
     origins.add("http://127.0.0.1:3000");

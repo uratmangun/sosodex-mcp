@@ -1,0 +1,26 @@
+[Unit]
+Description=SoSoDex MCP (Next.js + SoSoValue MCP)
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=localhost/sosodex-mcp:latest
+ContainerName=sosodex-mcp
+Pod=termux-stack.pod
+EnvironmentFile=%h/apps/sosodex-mcp/.env.local
+Environment=NODE_ENV=production
+Environment=PORT=3007
+Environment=HOSTNAME=0.0.0.0
+Environment=MCP_INTERNAL_HOST=termux-stack
+Environment=NEXT_TELEMETRY_DISABLED=1
+# Rootless Podman: keep ~/apps/sosodex-mcp/data mode 1777 (see deploy/push-image-to-vps.sh).
+Volume=%h/apps/sosodex-mcp/data:/data:Z
+AutoUpdate=local
+
+[Service]
+Restart=always
+RestartSec=10
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

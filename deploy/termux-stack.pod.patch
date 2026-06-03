@@ -1,9 +1,11 @@
-# Add this PublishPort line to ~/.config/containers/systemd/termux-stack.pod
-# (with the other PublishPort=127.0.0.1:300x:300x entries):
+# Add to ~/.config/containers/systemd/termux-stack.pod (with other PublishPort lines):
 #
-#   PublishPort=127.0.0.1:3004:3004
+#   PublishPort=127.0.0.1:3007:3007
 #
-# Cloudflare ingress (config.remote.yml), before http_status:404:
+# Cloudflare tunnel ingress (config.remote.yml), before fhenix-app / http_status:404:
 #
-#   - hostname: maps.uratmangun.ovh
-#     service: http://termux-stack:3004
+#   - hostname: sosodex.uratmangun.ovh
+#     service: http://termux-stack:3007
+#
+# DNS (once per hostname):
+#   podman exec cloudflared cloudflared tunnel route dns urat-tunnel sosodex.uratmangun.ovh

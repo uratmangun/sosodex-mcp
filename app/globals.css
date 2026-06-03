@@ -2,6 +2,12 @@
 @import "../node_modules/tw-animate-css/dist/tw-animate.css";
 @import "../node_modules/shadcn/dist/tailwind.css";
 
+/* Explicit scan paths — required for full utilities in Docker/production builds */
+@source "../app";
+@source "../components";
+@source "../lib";
+@source "../src";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
