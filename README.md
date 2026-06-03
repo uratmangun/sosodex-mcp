@@ -154,7 +154,6 @@ pnpm dlx @modelcontextprotocol/inspector --transport http --server-url http://lo
 | `pnpm start` | Production server (standalone) |
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | TypeScript check |
-| `pnpm run demo:record:prod` | Build + record guest demo video (webreel) |
 
 ---
 
