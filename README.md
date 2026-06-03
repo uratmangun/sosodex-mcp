@@ -2,6 +2,12 @@
 
 Next.js app with a **SoSoValue assistant** chat UI and an HTTP **MCP server** at `/mcp`. Tools in [`src/tools/`](src/tools/) call the [SoSoValue OpenAPI](https://openapi.sosovalue.com) and return compact **TOON** text for LLMs, plus **MCP App** widgets (charts and cards) where noted.
 
+## Demo
+
+Guest walkthrough of all 12 SoSoValue MCP tools:
+
+<video controls src="videos/sosovalue-tools-guest-demo.mp4" style="max-width: 100%;"></video>
+
 ## Quick start
 
 ```bash
@@ -42,7 +48,7 @@ API reference: [SoSoValue API documentation](https://sosovalue-1.gitbook.io/soso
 
 ## Using the web app
 
-1. Open the app and **Continue as guest** (or sign in with Google). Guest chats are stored in SQLite like signed-in sessions.
+1. Open the app and **Continue as guest**. Chats are stored in SQLite on the server.
 2. Pick a model from the selector (when using the built-in provider).
 3. Ask in natural language — the assistant calls SoSoValue MCP tools and shows results in the thread (text, tool cards, and embedded widgets for chart tools).
 4. **API settings** (gear): optional custom OpenAI-compatible endpoint, API key, model, system prompt, and **MCP server URL** to copy into Cursor or other MCP clients.
