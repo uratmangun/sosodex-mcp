@@ -15,6 +15,8 @@ gcp/
 .webreel/
 videos/*
 !videos/sosovalue-tools-guest-demo.mp4
+!videos/sosovalue-tools-guest-demo.png
+!videos/sosovalue-tools-guest-demo-readme.mp4
 scripts/webreel/sosovalue-guest-steps.json
 screenshot/*.png
 !screenshot/.gitkeep
