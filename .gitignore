@@ -21,3 +21,27 @@ videos/*
 scripts/webreel/sosovalue-guest-steps.json
 screenshot/*.png
 !screenshot/.gitkeep
+
+# --- cascade-archive ---
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+coverage/
+out/
+.venv/
+venv/
+__pycache__/
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+!.env.example.*
+credentials.json
+*.pem
+*.sst
+.next/dev/cache/webpack/client-development/1.pack.gz
+node_modules/.pnpm/@next+swc-linux-x64-gnu@16.2.3/node_modules/@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node
+node_modules/.pnpm/@next+swc-linux-x64-musl@16.2.3/node_modules/@next/swc-linux-x64-musl/next-swc.linux-x64-musl.node
